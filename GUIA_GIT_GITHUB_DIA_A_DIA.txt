@@ -312,3 +312,41 @@ Cada vez que trabajemos:
   9. git push
 
 Este ciclo mantiene el proyecto transportable, recuperable y controlado.
+
+
+CUANDO SE VALIDA UNA HIPOTESIS O COMPORTAMIENTO
+===============================================
+
+Si una prueba confirma un comportamiento de Tenable.sc:
+
+  1. Actualizar agents.md si afecta a fases, modelo de datos, decisiones o
+     contexto operativo.
+  2. Actualizar ESTANDARES_ADOPTADOS.md si afecta a una forma tecnica de
+     trabajar.
+  3. Ejecutar el harness:
+
+       powershell -ExecutionPolicy Bypass -File .\scripts\harness_check.ps1
+
+  4. Revisar cambios:
+
+       git status
+       git diff
+
+  5. Preparar archivos concretos:
+
+       git add agents.md ESTANDARES_ADOPTADOS.md HARNESS_DESARROLLO.md
+
+     Ajustar la lista segun los ficheros realmente modificados.
+
+  6. Crear commit:
+
+       git commit -m "Document validated Tenable SC behavior"
+
+  7. Subir a GitHub:
+
+       git push
+
+Regla:
+
+  Una hipotesis validada no debe quedarse solo en memoria o en la conversacion.
+  Debe quedar documentada, commiteada y subida a GitHub.

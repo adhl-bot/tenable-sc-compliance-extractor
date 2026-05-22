@@ -125,6 +125,11 @@ Cierre:
 2. Indicar comandos de prueba ejecutados.
 3. Registrar limitaciones o pruebas no ejecutadas.
 4. Si hay una decision nueva de proyecto, actualizar `agents.md`.
+5. Si se valida una hipotesis o comportamiento, promoverlo a documentacion:
+   `agents.md` para decisiones/contexto de proyecto y `ESTANDARES_ADOPTADOS.md`
+   para patrones tecnicos.
+6. Tras documentar una validacion, ejecutar el ciclo Git para no perder
+   contexto: `git status`, `git add`, `git commit` y `git push`.
 
 ## Aplicacion a utilidades Tenable.sc
 
@@ -161,6 +166,8 @@ Reglas:
 - `Hipotesis` puede guiar pruebas, diagnosticos y documentacion de pendientes.
 - Si una hipotesis afecta modelo de datos, filtros de `/analysis`, identidad de
   controles o calculo de KPIs, la funcionalidad queda bloqueada hasta confirmar.
+- Cuando una hipotesis pase a `Confirmado`, el cambio debe quedar versionado y
+  subido a GitHub en el mismo ciclo de trabajo.
 
 ## Referencias analizadas
 
