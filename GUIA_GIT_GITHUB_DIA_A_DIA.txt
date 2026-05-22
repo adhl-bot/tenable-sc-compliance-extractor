@@ -1,0 +1,314 @@
+GUIA GIT Y GITHUB - DIA A DIA
+Proyecto: Tenable.sc Compliance Extractor
+
+OBJETIVO
+========
+
+Usar Git para guardar versiones del proyecto y GitHub como copia remota privada.
+
+Git = historial local en tu PC.
+GitHub = copia remota en internet para poder recuperar o continuar desde otro PC.
+
+
+REGLA DE SEGURIDAD
+==================
+
+Antes de hacer commit o push, revisa siempre:
+
+  git status
+
+No deben aparecer estos elementos:
+
+  .env
+  outputs/
+  venv/
+  .venv/
+  logs/
+  backups/
+  TenSC_Compliance_asset_update/
+  ficheros con credenciales
+  ficheros con datos reales de cliente si no estan saneados
+
+Si aparecen, no hagas commit. Revisa primero .gitignore o pregunta.
+
+
+SI GIT NO FUNCIONA COMO "git"
+=============================
+
+En este PC Git esta instalado aqui:
+
+  C:\Program Files\Git\cmd\git.exe
+
+Si PowerShell no reconoce el comando git, usa:
+
+  & 'C:\Program Files\Git\cmd\git.exe' status
+
+Normalmente, cerrar y abrir VSCode o PowerShell despues de instalar Git arregla
+el PATH y permite usar simplemente:
+
+  git status
+
+
+COMPROBAR ESTADO DEL PROYECTO
+=============================
+
+Desde la carpeta del proyecto:
+
+  cd C:\Users\Alberto\Desktop\Proyectos\COMPLIANCE\Holcimv2
+
+Comprobar rama y estado:
+
+  git branch --show-current
+  git status
+
+Si git no esta en PATH:
+
+  & 'C:\Program Files\Git\cmd\git.exe' branch --show-current
+  & 'C:\Program Files\Git\cmd\git.exe' status
+
+
+CICLO NORMAL DE TRABAJO
+=======================
+
+1. Antes de empezar:
+
+  git status
+  git pull
+
+2. Trabaja en el codigo o documentacion.
+
+3. Comprueba que las pruebas pasan:
+
+  powershell -ExecutionPolicy Bypass -File .\scripts\harness_check.ps1
+
+4. Revisa cambios:
+
+  git status
+
+5. Ver diferencias:
+
+  git diff
+
+6. Anadir archivos concretos al commit:
+
+  git add NOMBRE_DEL_ARCHIVO
+
+Ejemplo:
+
+  git add agents.md ESTANDARES_ADOPTADOS.md HARNESS_DESARROLLO.md
+
+7. Revisar lo que quedo preparado:
+
+  git status
+
+8. Crear commit:
+
+  git commit -m "Descripcion corta del cambio"
+
+Ejemplo:
+
+  git commit -m "Document harness and audit file behavior"
+
+9. Subir a GitHub:
+
+  git push
+
+
+PRIMERA VEZ: CONECTAR ESTE PROYECTO CON GITHUB
+==============================================
+
+1. En GitHub, crear un repositorio nuevo:
+
+  Repository name: tenable-sc-compliance-extractor
+  Visibility: Private
+
+Importante:
+
+  No marcar "Add a README file"
+  No marcar ".gitignore"
+  No marcar "license"
+
+2. GitHub te dara una URL parecida a:
+
+  https://github.com/TU_USUARIO/tenable-sc-compliance-extractor.git
+
+3. En la carpeta local del proyecto:
+
+  cd C:\Users\Alberto\Desktop\Proyectos\COMPLIANCE\Holcimv2
+
+4. Conectar el repo local con GitHub:
+
+  git remote add origin https://github.com/TU_USUARIO/tenable-sc-compliance-extractor.git
+
+Si git no esta en PATH:
+
+  & 'C:\Program Files\Git\cmd\git.exe' remote add origin https://github.com/TU_USUARIO/tenable-sc-compliance-extractor.git
+
+5. Comprobar remote:
+
+  git remote -v
+
+6. Subir primera vez:
+
+  git push -u origin main
+
+Si git no esta en PATH:
+
+  & 'C:\Program Files\Git\cmd\git.exe' push -u origin main
+
+
+DESCARGAR EL PROYECTO EN OTRO PC
+================================
+
+1. Instalar Git en el nuevo PC.
+
+2. Abrir PowerShell o terminal.
+
+3. Ir a la carpeta donde quieras trabajar:
+
+  cd C:\Users\TU_USUARIO\Desktop\Proyectos
+
+4. Clonar el repositorio desde GitHub:
+
+  git clone https://github.com/TU_USUARIO/tenable-sc-compliance-extractor.git
+
+5. Entrar en la carpeta:
+
+  cd tenable-sc-compliance-extractor
+
+6. Crear tu .env local a partir de la plantilla:
+
+  copy .env.example .env
+
+7. Editar .env con las credenciales y URLs de ese entorno.
+
+Importante:
+
+  .env no se sube a GitHub.
+  Cada PC tiene su propio .env.
+
+8. Ejecutar comprobacion:
+
+  powershell -ExecutionPolicy Bypass -File .\scripts\harness_check.ps1
+
+9. Antes de empezar a trabajar:
+
+  git pull
+  git status
+
+
+TRAER CAMBIOS DE GITHUB AL PC ACTUAL
+====================================
+
+Cuando vuelves a un PC y quieres traer lo ultimo:
+
+  git pull
+
+Despues:
+
+  git status
+
+
+VER HISTORIAL
+=============
+
+Ultimos commits:
+
+  git log --oneline -5
+
+Ver detalles de un commit:
+
+  git show ID_DEL_COMMIT
+
+Ejemplo:
+
+  git show 1bc5206
+
+
+USO CON VSCODE
+==============
+
+1. Abrir VSCode.
+2. File -> Open Folder.
+3. Elegir:
+
+  C:\Users\Alberto\Desktop\Proyectos\COMPLIANCE\Holcimv2
+
+4. Abrir el panel Source Control.
+5. Revisar cambios visualmente.
+6. Puedes usar VSCode para ver diferencias y la terminal para ejecutar comandos.
+
+Recomendacion:
+
+  Al principio usa comandos para commit/push, y VSCode para entender que cambio.
+
+
+COMANDOS MAS USADOS
+===================
+
+Estado:
+
+  git status
+
+Actualizar desde GitHub:
+
+  git pull
+
+Ver cambios:
+
+  git diff
+
+Preparar archivo:
+
+  git add archivo
+
+Crear commit:
+
+  git commit -m "mensaje"
+
+Subir:
+
+  git push
+
+Historial:
+
+  git log --oneline -5
+
+
+QUE HACER SI TE EQUIVOCAS
+=========================
+
+Si modificaste un archivo y aun no hiciste commit:
+
+  No ejecutes comandos destructivos sin revisar.
+  Pregunta antes de usar git restore, git checkout o git reset.
+
+Si hiciste commit pero no push:
+
+  Se puede corregir, pero pregunta antes.
+
+Si hiciste push:
+
+  Tambien se puede corregir, pero requiere mas cuidado.
+
+Regla:
+
+  Antes de borrar, revertir o resetear, preguntar.
+
+
+FLUJO RECOMENDADO PARA ESTE PROYECTO
+====================================
+
+Cada vez que trabajemos:
+
+  1. git status
+  2. git pull
+  3. hacer cambios
+  4. powershell -ExecutionPolicy Bypass -File .\scripts\harness_check.ps1
+  5. git status
+  6. git diff
+  7. git add archivos concretos
+  8. git commit -m "mensaje claro"
+  9. git push
+
+Este ciclo mantiene el proyecto transportable, recuperable y controlado.
