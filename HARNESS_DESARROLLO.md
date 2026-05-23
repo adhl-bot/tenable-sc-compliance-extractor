@@ -20,7 +20,8 @@ El harness debe ayudar a:
 - dejar evidencia de pruebas;
 - distinguir hechos confirmados de hipotesis no confirmadas;
 - evitar duplicar secretos, rutas locales o decisiones de fase fuera de
-  `agents.md`.
+  `agents.md`;
+- evitar duplicar hipotesis pendientes fuera de `hypotheses_to_validate.md`.
 
 ## Subsistemas adoptados
 
@@ -29,24 +30,46 @@ El harness debe ayudar a:
 Artefactos actuales:
 
 - `agents.md`: fuente de verdad del proyecto.
+- `hypotheses_to_validate.md`: registro canonico de hipotesis pendientes.
+- `laboratorio/README.md`: guia canonica de configuracion y operacion del laboratorio.
+- `laboratorio/GUIA_USUARIO.md`: guia para levantar y validar el laboratorio portable sin conocimientos Docker.
 - `README.md`: guia corta de uso.
 - `ESTANDARES_ADOPTADOS.md`: patrones tecnicos reutilizables.
-- `HARNESS_DESARROLLO.md`: protocolo de trabajo controlado.
+- `HARNESS_DESARROLLO.md`: protocolo de trabajo controlado; no sustituye a
+  `ESTANDARES_ADOPTADOS.md` ni recoge configuraciones de laboratorio.
 
 Regla:
 
-- Antes de tocar codigo, leer `agents.md` y el estandar tecnico que aplique.
+- Antes de tocar codigo, leer `agents.md` y el estandar tecnico que aplique en
+  `ESTANDARES_ADOPTADOS.md`.
+- Si la tarea implica levantar, diagnosticar, reparar, validar, consultar,
+  migrar o modificar el laboratorio, leer primero `laboratorio/README.md`; las
+  configuraciones del laboratorio viven alli y no deben duplicarse aqui.
+- Para comprobar portabilidad del laboratorio, usar `python laboratorio\build_lab.py package-status`.
+- Todo desarrollo nuevo de utilidades, probes, llamadas API, scraping de apoyo,
+  parsers y validaciones debe hacerse en Python usando librerias de Python
+  estandar o dependencias declaradas del proyecto. PowerShell, `curl` u otros
+  comandos manuales pueden servir para diagnostico puntual, pero no deben quedar
+  como mecanismo principal reproducible del proyecto.
 - Si aparece una decision de fase o modelo de datos, actualizar `agents.md`, no
   crear un documento paralelo.
+- Si aparece una hipotesis pendiente de comportamiento, registrarla o actualizarla
+  en `hypotheses_to_validate.md`, no en un listado paralelo.
 - No convertir una observacion de Tenable VM, documentacion generica de Nessus o
   inferencia propia en comportamiento de Tenable.sc sin prueba en laboratorio o
   fuente oficial aplicable a Tenable.sc.
+- Para validar estructura de `.audit`, campos de API, filtros, estados o
+  comportamiento funcional, apoyarse siempre en documentacion incluida en el
+  proyecto o enlazada desde `agents.md`. Si se usa scraping o busqueda web para
+  acelerar la investigacion, el resultado debe acabar referenciado a una fuente
+  oficial o a un artefacto local del proyecto.
 
 ### 2. Estado
 
 Estado actual:
 
 - El estado funcional vive en `agents.md`.
+- Las hipotesis pendientes viven en `hypotheses_to_validate.md`.
 - Las salidas de laboratorio viven en `outputs/`.
 - Los tests viven en `tests/`.
 
@@ -82,6 +105,7 @@ Cuando una utilidad toque Tenable.sc real:
 Cuando una funcionalidad dependa de comportamiento no confirmado:
 
 - crear primero una prueba de laboratorio o una consulta de diagnostico;
+- si se usa el laboratorio, seguir `laboratorio/README.md`;
 - registrar campos observados y comando usado;
 - no cerrar la funcionalidad hasta que el comportamiento este confirmado o la
   dependencia se elimine del diseno.
@@ -105,7 +129,7 @@ Inicio:
 1. Leer `agents.md`.
 2. Leer `ESTANDARES_ADOPTADOS.md` si se va a implementar una utilidad nueva.
 3. Identificar si la tarea usa solo comportamiento confirmado o si depende de
-   una hipotesis pendiente.
+   una hipotesis pendiente consultando `hypotheses_to_validate.md`.
 4. Ejecutar `.\scripts\harness_check.ps1` cuando se vaya a tocar codigo.
 5. Si hay hipotesis pendiente, preparar primero la validacion de laboratorio.
 6. Identificar una unica funcionalidad activa.
@@ -116,8 +140,10 @@ Ejecucion:
 2. Mantener secretos fuera de codigo y docs versionables.
 3. Si la tarea depende de comportamiento no confirmado, ejecutar solo pruebas o
    diagnosticos hasta confirmarlo.
-4. Anadir o ajustar tests si cambia logica reusable.
-5. Ejecutar verificacion.
+4. Convertir diagnosticos utiles en scripts Python reproducibles cuando vayan a
+   repetirse o sustenten una decision del proyecto.
+5. Anadir o ajustar tests si cambia logica reusable.
+6. Ejecutar verificacion.
 
 Cierre:
 
@@ -125,9 +151,10 @@ Cierre:
 2. Indicar comandos de prueba ejecutados.
 3. Registrar limitaciones o pruebas no ejecutadas.
 4. Si hay una decision nueva de proyecto, actualizar `agents.md`.
-5. Si se valida una hipotesis o comportamiento, promoverlo a documentacion:
-   `agents.md` para decisiones/contexto de proyecto y `ESTANDARES_ADOPTADOS.md`
-   para patrones tecnicos.
+5. Si se valida o rechaza una hipotesis, actualizar primero
+   `hypotheses_to_validate.md`; despues promover solo la decision confirmada a
+   `agents.md` para decisiones/contexto de proyecto o a
+   `ESTANDARES_ADOPTADOS.md` para patrones tecnicos.
 6. Tras documentar una validacion, ejecutar el ciclo Git para no perder
    contexto: `git status`, `git add`, `git commit` y `git push`.
 

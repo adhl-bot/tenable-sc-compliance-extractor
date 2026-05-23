@@ -4,7 +4,8 @@ Este fichero recopila patrones tecnicos que se adopten al analizar utilidades
 existentes y nuevas necesidades de la API de Tenable.sc.
 
 `agents.md` sigue siendo la fuente de verdad del proyecto para fases, alcance,
-contexto operativo y decisiones generales. Este documento solo recoge formas de
+contexto operativo y decisiones generales. `hypotheses_to_validate.md` es el
+registro canonico de hipotesis pendientes. Este documento solo recoge formas de
 trabajo reutilizables para organizar scripts y llamadas tecnicas.
 
 ## Utilidades Tenable.sc
@@ -119,47 +120,12 @@ Patron adoptado tras investigacion inicial:
   listado por `/auditFile` puede devolver errores de filesystem al usarse como
   filtro de analysis.
 
-#### Pendiente de confirmar: identidad de controles
+#### Hipotesis pendientes
 
-Conversacion externa con Exa de Tenable VM, no confirmada para Tenable.sc:
-
-- En Tenable VM, al ejecutar dos `.audit` contra el mismo host, los hallazgos
-  parecen poder diferenciarse por filtro de audit file.
-- Exa indico que si se modifica solo el valor esperado/output de un control, el
-  hallazgo se trataria como el mismo control y cambiaria el estado PASSED/FAILED.
-- Exa indico que si se cambia solo el nombre/descripcion del control, Tenable VM
-  lo trataria como un control nuevo.
-- Exa indico que sin filtrar por audit file podrian verse dos controles
-  logicamente equivalentes si sus nombres son distintos.
-
-Estado para Tenable.sc:
-
-- No confirmado en laboratorio Tenable.sc.
-- No usar estas afirmaciones como base de implementacion hasta validarlas.
-- Solo se pueden usar para disenar pruebas de laboratorio.
-- Si una utilidad depende de identidad historica de controles, debe bloquearse
-  hasta confirmar el comportamiento en Tenable.sc.
-
-Evidencia oficial relacionada, pero no suficiente para cerrar la decision:
-
-- La referencia de compliance checks de Nessus indica en varios tipos de checks
-  que `description` debe ser unico y que Tenable puede usarlo para generar un
-  plugin ID unico. Esto sugiere que renombrar controles puede afectar identidad,
-  pero no confirma por si solo la deduplicacion de resultados en Tenable.sc
-  `sourceType=cumulative`.
-
-Pruebas pendientes en Tenable.sc:
-
-- Mismo host, mismo audit modificado solo en valor esperado: comparar
-  `pluginID`, `pluginName`, `vulnUUID`, `xref`, `severity`, `firstSeen`,
-  `lastSeen`, `<cm:compliance-check-name>`, `<cm:compliance-result>`,
-  `<cm:compliance-actual-value>` y `<cm:compliance-policy-value>`.
-- Mismo host, audit modificado solo en nombre/descripcion de un control:
-  comprobar si aparecen dos registros en cumulative sin filtro de audit, o si
-  el registro anterior queda reemplazado/mitigado.
-- Dos audits en el mismo escaneo o en escaneos cercanos: comprobar si
-  `auditFileID`, `<cm:compliance-audit-file>` y campos de resultado permiten
-  separar de forma fiable los controles por audit.
+Las hipotesis pendientes sobre identidad de controles, cambios de `.audit`,
+`reference`, duplicados y separacion por audit viven en
+`hypotheses_to_validate.md`. Este documento solo debe recoger patrones ya
+adoptados o reglas tecnicas confirmadas.
 
 ### Actualizacion de Asset Lists
 

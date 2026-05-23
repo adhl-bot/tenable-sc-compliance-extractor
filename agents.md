@@ -8,36 +8,34 @@ El proyecto se desarrolla en laboratorio local antes de entregar al cliente. Cua
 
 ## Fuente de verdad
 
-Este fichero es la fuente de verdad del proyecto. No mantener otro fichero paralelo con fases, decisiones tecnicas o contexto operativo. README.md debe quedar como guia corta de uso.
+Este fichero es la fuente de verdad del proyecto para fases, decisiones tecnicas cerradas y contexto operativo.
 
-## Entorno local de laboratorio
+Excepcion controlada: las hipotesis pendientes de validar, especialmente las referentes al comportamiento de Tenable.sc, Tenable IO, Nessus, `.audit`, `/analysis`, identidad de controles, estados de compliance, Asset Lists o correlacion de scans, viven solo en `hypotheses_to_validate.md`. No mantener listados paralelos de hipotesis pendientes en otros Markdown. Cuando una hipotesis se confirme o rechace, actualizar `hypotheses_to_validate.md` y mover solo la decision confirmada a `agents.md` o el patron tecnico a `ESTANDARES_ADOPTADOS.md`.
 
-- Tenable.sc esta en Docker como `tenablesc-labbox-ol8`, publicado en `https://localhost:8443` hacia el puerto 443 del contenedor.
-- Splunk esta en Docker como `splunk`, publicado en `http://localhost:8000` hacia el puerto 8000 del contenedor.
-- En el `docker ps` validado no aparecia publicado el puerto HEC 8088 ni el puerto de gestion 8089 de Splunk. Fase 2 debera revisar esto antes de elegir el metodo de ingesta.
+README.md debe quedar como guia corta de uso.
+
+## Mapa de documentacion
+
+- `agents.md`: fuente de verdad para fases, alcance, decisiones tecnicas cerradas y contexto operativo del proyecto.
+- `hypotheses_to_validate.md`: registro canonico de hipotesis pendientes o en validacion.
+- `laboratorio/README.md`: guia canonica de configuracion, operacion, evidencias, incidencias y comandos del laboratorio.
+- `ESTANDARES_ADOPTADOS.md`: patrones tecnicos reutilizables y reglas ya adoptadas para implementar utilidades.
+- `HARNESS_DESARROLLO.md`: protocolo de trabajo controlado; no recoge estandares tecnicos ni configuraciones de laboratorio.
+- `README.md`: guia corta de uso del proyecto.
+
+## Laboratorio
+
+La configuracion operativa del laboratorio vive en `laboratorio/README.md`. Leer ese README antes de levantar, diagnosticar, reparar, validar, migrar, consultar o modificar el laboratorio.
+
+Ese README centraliza puertos, contenedores, Docker Compose, comandos `setup`/`package-status`/`doctor`/`repair`/`validate`, modo portable desde imagen sin backups de datos, incidencias conocidas, Splunk de laboratorio, Tenable IO secundario y evidencias obtenidas en laboratorio. No duplicar esos detalles en ficheros Markdown de raiz ni mantener ficheros-puntero paralelos.
+
+Para uso por personas no tecnicas, la guia canonica es `laboratorio/GUIA_USUARIO.md`.
 
 ## Configuracion local
 
-Las credenciales y URLs del laboratorio estan en `.env`. No duplicar secretos en documentacion ni codigo. Mantener `.env` fuera de git y usar `.env.example` para plantillas entregables.
+Las credenciales y URLs locales estan en `.env`. No duplicar secretos en documentacion ni codigo. Mantener `.env` fuera de git y usar `.env.example` para plantillas entregables.
 
-Variables principales:
-
-- `TENABLE_SC_URL`
-- `TENABLE_SC_USERNAME`
-- `TENABLE_SC_PASSWORD`
-- `TENABLE_SC_VERIFY_SSL`
-- `TENABLE_SC_AUTH_MODE`
-- `TENABLE_SC_ACCESS_KEY`
-- `TENABLE_SC_SECRET_KEY`
-- `SPLUNK_WEB_URL`
-- `SPLUNK_USERNAME`
-- `SPLUNK_PASSWORD`
-- `SPLUNK_HEC_URL`
-- `SPLUNK_HEC_TOKEN`
-- `SPLUNK_INDEX`
-- `SPLUNK_SOURCETYPE_KPI`
-- `SPLUNK_SOURCETYPE_DETAIL`
-- `SPLUNK_LOOKUP_APP`
+Las variables y configuraciones especificas del laboratorio se documentan en `laboratorio/README.md`.
 
 ## Principios de trabajo
 
@@ -63,6 +61,8 @@ Para considerar algo cerrado debe cumplirse:
 - El usuario confirma que se da por validado o acepta avanzar explicitamente.
 
 Si aparece una duda que pueda cambiar el modelo de datos, la query de Tenable.sc o el futuro formato de ingesta, se bloquea el avance y se resuelve antes de construir encima.
+
+Cuando la validacion use el laboratorio, seguir la configuracion y el protocolo de `laboratorio/README.md`.
 
 ## Fases del proyecto
 
@@ -100,13 +100,13 @@ Query Tenable.sc validado inicialmente:
 - Filtro fijo: `pluginType=compliance`.
 - Filtro de agrupacion: Asset List mediante `assetID=<id>` inicialmente.
 - Fallback para Asset Lists estaticas no preparadas: leer `definedIPs` desde `/asset/{id}` y consultar con filtro `ip`.
-- Filtro audit: `auditFileID=<id>` si el dato esta disponible y valida en laboratorio/produccion.
+- Filtro audit: `auditFileID=<id>` si el dato esta disponible y validado para el entorno objetivo.
 - Tool elegida para el primer JSON: `vulndetails`, porque devuelve `pluginText` y permite extraer `actual value`.
 - Tool candidata alternativa: `listvuln`, si resulta ser el equivalente mas cercano a "Vulnerability Detail List" de la GUI o reduce ruido.
 
 Nota de investigacion:
 
-En la GUI se identifica como "Vulnerability Detail List". En API se compararon `vulndetails` y `listvuln` sobre `compliance_example`. `listvuln` devuelve menos datos y no incluye `pluginText`; `vulndetails` incluye `pluginText`, `pluginName`, `ip` y `lastSeen`, por lo que queda como tool de Fase 1A para los campos minimos actuales.
+En la GUI se identifica como "Vulnerability Detail List". En API se compararon `vulndetails` y `listvuln`. `listvuln` devuelve menos datos y no incluye `pluginText`; `vulndetails` incluye `pluginText`, `pluginName`, `ip` y `lastSeen`, por lo que queda como tool de Fase 1A para los campos minimos actuales.
 
 Salida JSON objetivo:
 
@@ -129,24 +129,17 @@ Reglas de salida:
 - El campo `control_name` se extrae desde `<cm:compliance-check-name>` y, si no existe, se usa `pluginName`.
 - El campo `last_observed` se deriva de `lastSeen`.
 
-Validacion de laboratorio:
+Validacion:
 
-- Asset List: `compliance_example`.
-- Asset ID: `118`.
-- IP definida en el asset: `192.168.128.30`.
-- Registros extraidos: `77`.
-- Fichero generado: `outputs/compliance_example_details.json`.
-- La consulta directa por `assetID=118` falla por `Error loading uuid file into UUID list`; el extractor usa fallback por `ip` para este asset.
+- La evidencia de validacion en laboratorio de Fase 1A vive en `laboratorio/README.md`.
 
-Decisiones pendientes de fase 1A:
+Hipotesis pendientes de fase 1A:
 
-- Confirmar si `pluginText` completo debe ir al JSON final o si se debe guardar version reducida/hash para controlar volumen.
-- Confirmar como modelar el audit observado en `pluginText`, porque no siempre coincide con `/auditFile`.
-- Confirmar estrategia ante Asset Lists dinamicas no preparadas.
+- Las hipotesis pendientes sobre volumen de `pluginText`, audit observado y Asset Lists dinamicas/no preparadas viven en `hypotheses_to_validate.md`.
 
 Criterio de aceptacion:
 
-- Un comando genera un JSON valido con detalles de compliance para al menos un Asset List y un audit file de laboratorio.
+- Un comando genera un JSON valido con detalles de compliance para al menos un Asset List y un audit file del entorno validado.
 - El JSON conserva suficiente informacion para reconstruir host, control, resultado, audit y asset.
 - La paginacion funciona sin perder resultados.
 - Se documenta que tool API se usara definitivamente.
@@ -178,12 +171,9 @@ Query Tenable.sc actual:
 - `tool`: `sumseverity`.
 - Filtros: `pluginType=compliance`, `assetID`, opcional `auditFileID`.
 
-Decisiones pendientes de fase 1B:
+Hipotesis pendientes de fase 1B:
 
-- Confirmar si Tenable.sc permite buscar de forma fiable por audits especificos en todos los repositorios. En laboratorio `auditFileID=1000010` funciona para `assetID=0`, pero varios audits listados por `/auditFile` devuelven `AuditFile #<id> not found` al usarse como filtro de analysis.
-- Confirmar si `severity.id=0` equivale siempre a superado y `severity.id>0` siempre a fallido.
-- Confirmar si existen estados no binarios que deban quedar fuera del porcentaje.
-- Definir exclusiones de Asset Lists tecnicas/default.
+- Las hipotesis pendientes sobre fiabilidad de `auditFileID`, mapeo de severidad, estados no binarios y exclusiones de Asset Lists viven en `hypotheses_to_validate.md`.
 
 Criterio de aceptacion:
 
@@ -211,12 +201,18 @@ No hacer en esta fase aun:
 
 Notas futuras:
 
-- Si se usa HEC, revisar publicacion/configuracion del puerto 8088 y token.
+- Si se usa HEC, revisar primero la configuracion del Splunk de laboratorio en `laboratorio/README.md`.
 - Sourcetypes candidatos: `tenable:sc:compliance:detail` y `tenable:sc:compliance:kpi`.
-- Indice de laboratorio candidato: `tenable_compliance`.
+- El indice final se definira en Fase 2.
 - Los lookups pueden subirse por Splunk REST/SDK, copiarse a una app Splunk o gestionarse como CSV en el filesystem del contenedor. La decision queda aplazada.
 
 ## Conocimiento tecnico Tenable.sc
+
+Recursos locales:
+
+- `NessusComplianceChecksReference.pdf` queda como fuente local de consulta cuando haya que revisar la estructura, campos y sintaxis de ficheros `.audit`. Usarlo especialmente para confirmar el significado de campos como `description`, `reference`, `check_type`, valores esperados y formato de checks antes de tomar decisiones de modelo.
+- Los recursos, mapa interno, inspector y evidencias del laboratorio Tenable.sc viven bajo `laboratorio/` y se documentan desde `laboratorio/README.md`.
+- No automatizar el extractor contra rutas internas de `/opt/sc`; la extraccion funcional debe seguir usando la API REST documentada de Tenable.sc.
 
 API:
 
@@ -224,7 +220,7 @@ API:
 - Muchos recursos soportan `fields` para reducir la respuesta y `expand` para pedir datos relacionados.
 - La API moderna recomienda API keys con cabecera `x-apikey` en formato `accesskey=<ACCESS_KEY>; secretkey=<SECRET_KEY>;`.
 - Tambien existe login por usuario/password via `POST /rest/token`; el token devuelto se envia en `X-SecurityCenter` hasta hacer `DELETE /rest/token`.
-- Para laboratorio se puede usar `TENABLE_SC_AUTH_MODE=session`. Para produccion, preferir API keys de un usuario tecnico con permisos minimos.
+- Para produccion, preferir API keys de un usuario tecnico con permisos minimos. Los modos locales se documentan en `laboratorio/README.md`.
 
 Analysis:
 
@@ -238,25 +234,46 @@ Asset Lists:
 
 - En Tenable.sc los "Assets" de la UI corresponden a Asset Lists.
 - En este proyecto no agrupamos por el campo `tags`; agrupamos por el nombre de cada Asset List y los equipos/IPs que agrupa.
-- En laboratorio el filtro `assetID=<id>` funciona para algunos assets, pero `compliance_example` requiere fallback por `ip` porque Tenable.sc no tiene preparado el fichero interno de UUIDs.
+- Las incidencias y repairs de Asset Lists del laboratorio viven en `laboratorio/README.md`.
+
+Scans, scanners y policies:
+
+- `/policy/{id}` permite recuperar la Scan Policy y sus `auditFiles`.
+- `/scanResult/import` importa resultados de scan desde un fichero previamente subido, identificado por `filename`, contra un repositorio destino. La documentacion de Tenable.sc permite subir resultados activos o de agentes en `.nessus` o `.zip` con un unico `.nessus`.
+- Para resultados importados desde Nessus externo o agentes, el repositorio debe ser compatible con el tipo de resultado. Tenable advierte que importar resultados de agente en repositorios no-agent puede omitir vulnerabilidades sin IP, e importar resultados no-agent en repositorios agent puede omitir vulnerabilidades sin Agent ID.
+- Las evidencias de scans, scanners, policies, repairs e importaciones del laboratorio viven en `laboratorio/README.md`.
+- Decision provisional para scans ejecutados fuera de Tenable.sc e importados despues: no asumir que el resultado queda enlazado de forma fiable al `policy.id` o `auditFile.id` registrado en Tenable.sc. Mantener en la salida tanto el audit registrado cuando exista (`auditFileID`) como el audit observado en el resultado (`<cm:compliance-audit-file>` / nombre del `.nessus`), y validar por repositorio/tipo de resultado antes de usar `auditFileID` como clave unica.
 
 Audit files:
 
 - `/auditFile` lista y gestiona los `.audit` registrados en Tenable.sc.
 - Campos utiles de `/auditFile`: `id`, `uuid`, `name`, `type`, `status`, `version`, `filename`, `originalFilename`, `modifiedTime`, `lastRefreshedTime`, `auditFileTemplate`, `typeFields`.
-- Investigacion de laboratorio 2026-05-22: `/auditFile` devuelve 14 audit files usables.
-- Investigacion de laboratorio 2026-05-22: `assetID=0` con `auditFileID=1000010` devuelve 30 controles por `sumseverity` y `vulndetails`; los resultados son 11 `severity.id=0` y 19 `severity.id=3`.
-- Investigacion de laboratorio 2026-05-22: en `vulndetails`, `pluginText` incluye `<cm:compliance-audit-file>`, pero ese valor no siempre coincide con `/auditFile.name` ni con `/auditFile.originalFilename`. Para `auditFileID=1000010`, el tag observado es `auditFile.zCvfBQ` aunque `/auditFile/1000010` indica `originalFilename=CAS Group 1 - 10-22-20.audit`. Para `compliance_example`, el tag observado es `CIS_Docker_Community_Edition_L1_Docker_v1.1.0.audit`, que no aparece en los audit files usables del laboratorio.
+- Para modificar el contenido de un `.audit` ya registrado en Tenable.sc, la via validada es subir el nuevo fichero con `POST /file/upload` y aplicar `PATCH /auditFile/{id}` usando el `filename` devuelto por la subida. Esto conserva el `auditFile.id`, aunque cambia el `filename` interno `scfile_*`.
 - Decision provisional: para filtrar o agrupar por audit registrado, usar `auditFileID` cuando sea valido; para trazabilidad del resultado, conservar tambien el audit observado en `pluginText` como campo separado, sin asumir que es clave de union contra `/auditFile`.
-- En Fase 1B queda confirmar si `auditFileID` permite agrupar de forma fiable por audit en todos los repositorios de produccion.
+- Las hipotesis pendientes sobre fiabilidad de `auditFileID` y correlacion con el audit observado viven en `hypotheses_to_validate.md`.
+- Decision operativa: editar directamente en filesystem por SSH/Docker queda documentado como contingencia de laboratorio en `laboratorio/README.md`. No debe ser la via por defecto en produccion porque evita validaciones de API y puede dejar sin actualizar metadatos como `modifiedTime`, caches, checksums internos o estados usados por Tenable.sc. Usarlo solo como contingencia controlada, con export posterior por API y scan de validacion.
+- Implicacion para agentes: mantener el mismo `auditFile.id` evita tener que crear un nuevo fichero de compliance y actualizar referencias por ID. Aun asi, los resultados de compliance no se reescriben historicamente; los cambios del `.audit` se reflejaran tras nuevos scans/resultados.
 
 Identidad de controles de compliance:
 
-- Conversacion externa con Exa de Tenable VM 2026-05-22, no confirmada para Tenable.sc: en Tenable VM, cambiar solo el valor esperado de un control mantendria el mismo control y cambiaria el resultado; cambiar solo el nombre/descripcion del control haria que aparezca como un control nuevo; sin filtrar por audit file podrian verse dos controles logicamente equivalentes.
-- Estado para Tenable.sc: pendiente de confirmar. No usar estas afirmaciones como base de implementacion hasta validarlas en laboratorio Tenable.sc o con documentacion oficial aplicable.
-- Evidencia oficial relacionada pero no concluyente: la referencia de compliance checks de Nessus indica en varios tipos de checks que `description` debe ser unico y que Tenable puede usarlo para generar un plugin ID unico. Esto sugiere riesgo de que renombrar controles afecte identidad, pero no confirma la deduplicacion en Tenable.sc cumulative.
-- Validacion pendiente: ejecutar contra el mismo host dos audits donde solo cambie el valor esperado de un control y comparar `pluginID`, `pluginName`, `vulnUUID`, `xref`, `severity`, `firstSeen`, `lastSeen`, `<cm:compliance-check-name>`, `<cm:compliance-result>`, `<cm:compliance-actual-value>` y `<cm:compliance-policy-value>`.
-- Validacion pendiente: ejecutar contra el mismo host dos audits donde solo cambie el nombre/descripcion de un control y comprobar si cumulative muestra dos registros, reemplaza el registro o marca el anterior como mitigado.
+- Las hipotesis pendientes sobre identidad de controles, cambios de `.audit`, duplicados/colapso y uso de `reference` como metadato viven en `hypotheses_to_validate.md`.
+- Decision: para extraer metricas latest por audit registrado, usar `assetID`/IP + `auditFileID` + `sourceType=cumulative` cuando el audit este registrado en Tenable.sc.
+- Decision: si hay varios audits sobre el mismo host, filtrar por `auditFileID` y conservar tambien el audit observado en `<cm:compliance-audit-file>`.
+- Decision: usar `<cm:compliance-reference>` como fuente principal de metadatos de negocio.
+- Decision: mantener todos los metadatos de negocio en un unico campo `reference`; no usar una segunda linea `reference` separada para metadatos del cliente.
+- Decision: no usar `check_id`, `full_id` ni `functional_id` como clave historica unica si el contenido funcional del control puede cambiar entre versiones.
+- Decision: no meter metadatos de negocio en `description` si se quiere mantener continuidad historica; usar `reference`.
+
+## Conocimiento tecnico Tenable IO
+
+El alcance, configuracion y evidencias del laboratorio secundario Tenable IO viven en `laboratorio/README.md`.
+
+Reglas de uso:
+
+- No guardar API keys reales en documentacion, codigo, tests ni ejemplos versionables.
+- No mezclar resultados de Tenable IO con resultados de Tenable.sc sin campo de procedencia claro.
+- Las conclusiones obtenidas en Tenable IO sobre `.audit`, scans o identidad de controles deben registrarse como evidencia de Tenable IO hasta confirmar si aplican tambien a Tenable.sc.
+- Las hipotesis pendientes sobre `reference` e identidad de controles en Tenable IO viven en `hypotheses_to_validate.md`.
 
 ## Comandos actuales
 
@@ -275,17 +292,21 @@ python extract_compliance.py audit-files --pretty
 Extraer KPI prototipo:
 
 ```bash
-python extract_compliance.py extract --asset-id 0 --audit-file-id 1000010 --pretty
+python extract_compliance.py extract --asset-id <asset_id> --audit-file-id <audit_file_id> --pretty
 ```
 
 Extraer detalles Fase 1A:
 
 ```bash
-python extract_compliance.py details --asset-name compliance_example --output outputs/compliance_example_details.json --pretty
+python extract_compliance.py details --asset-name <asset_name> --output outputs/compliance_details.json --pretty
 ```
+
+Los comandos y probes relacionados con laboratorio viven en `laboratorio/README.md`.
 
 ## Recursos oficiales
 
+- Recurso local para estructura de `.audit`: `NessusComplianceChecksReference.pdf`
+- Tenable Developer API Explorer: https://developer.tenable.com/reference/navigate
 - pyTenable: https://pytenable.readthedocs.io/en/stable/
 - pyTenable Tenable.sc wrapper: https://pytenable.readthedocs.io/en/stable/api/sc/index.html
 - pyTenable Analysis: https://pytenable.readthedocs.io/en/stable/api/sc/analysis.html
@@ -301,14 +322,8 @@ python extract_compliance.py details --asset-name compliance_example --output ou
 - Splunk HEC event format: https://help.splunk.com/en/splunk-enterprise/get-data-in/get-started-with-getting-data-in/9.1/get-data-with-http-event-collector/format-events-for-http-event-collector
 - Splunk HEC endpoints: https://help.splunk.com/en/data-management/get-data-in/get-data-into-splunk-enterprise/9.0/get-data-with-http-event-collector/http-event-collector-rest-api-endpoints
 
-## Preguntas abiertas
+## Hipotesis y preguntas abiertas
 
-1. Que Asset Lists de produccion son de negocio y cuales son listas tecnicas/default que debemos excluir?
-2. Confirmar si `pluginText` completo debe quedar en el JSON de Fase 1A o si bastara con campos parseados y hashes para controlar volumen.
-3. Definir el modelo final para representar audit registrado (`auditFileID`/`/auditFile`) y audit observado en `pluginText`, ya que no siempre coinciden.
-4. Confirmar si `severity.id=0` cubre todos los PASSED y `severity.id>0` todos los FAILED, o si aparecen estados adicionales.
-5. Confirmar que identidad de host necesitaremos despues: `hostUUID`, `uuid`, `ip`, `dnsName`, `netbiosName`, o combinacion por repositorio.
-6. Definir donde correra el extractor final: host, contenedor dedicado, Splunk modular input o tarea programada.
-7. Para Fase 2, definir presupuesto de ingesta diario o limite de licencia.
-8. Para Fase 2, decidir si los lookups se mantendran en CSV dentro de una Splunk app, KV Store o carga por API.
-9. Confirmar en Tenable.sc como se identifica un control de compliance cuando cambia el `.audit`: cambio de valor esperado, cambio de nombre/descripcion y ejecucion de dos audits con controles equivalentes sobre el mismo host.
+Las hipotesis pendientes de validar viven en `hypotheses_to_validate.md`. No mantener aqui otro listado paralelo.
+
+Las preguntas abiertas que no sean hipotesis de comportamiento deben documentarse en la fase o seccion operativa correspondiente cuando se conviertan en una decision accionable.

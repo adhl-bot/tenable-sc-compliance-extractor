@@ -12,7 +12,14 @@ logs/
 tmp/
 .tmp/
 backups/
+laboratorio/backups/
 outputs/
 *.log
 *.gz
+*.tar
+*.tgz
+*.zip
+docker-artifacts/
+labbox-utils/
+laboratorio/labbox-utils/
 TenSC_Compliance_asset_update/
