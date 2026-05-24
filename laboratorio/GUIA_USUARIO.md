@@ -10,7 +10,6 @@ que funciona. No hace falta conocer Docker en detalle.
 - Python 3 instalado y disponible como `python`.
 - Puertos libres:
   - `8443` para Tenable.sc.
-  - `8835` para Nessus.
 - La carpeta del proyecto con `laboratorio/` completa.
 
 ## Que Debe Haber Dentro De `laboratorio`
@@ -55,9 +54,8 @@ Este script prepara el laboratorio desde la imagen:
 
 - Crea `laboratorio/.env` si no existe.
 - Carga la imagen privada desde `laboratorio/labbox-docker.zip`.
-- Descarga o usa localmente la imagen publica de Nessus.
 - Extrae `laboratorio/labbox-utils/`.
-- Arranca Tenable.sc y Nessus.
+- Arranca Tenable.sc.
 - Ejecuta diagnostico y validacion.
 
 No restaura backups de datos. El laboratorio se recrea desde las imagenes.
@@ -73,7 +71,6 @@ powershell -ExecutionPolicy Bypass -File .\laboratorio\ARRANCAR_LABORATORIO.ps1
 Al terminar, abre:
 
 - Tenable.sc: `https://localhost:8443`
-- Nessus: `https://localhost:8835`
 
 ## Validar Que Todo Esta Bien
 
@@ -110,7 +107,7 @@ Si aparece que Docker no responde:
 
 Si dice que un puerto esta ocupado:
 
-- Cierra la aplicacion que este usando `8443` o `8835`.
+- Cierra la aplicacion que este usando `8443`.
 - Repite el arranque.
 
 Si `python` no se reconoce:

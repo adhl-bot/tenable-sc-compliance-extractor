@@ -9,7 +9,6 @@ class LabBuildTests(unittest.TestCase):
             "tenablesc_postgres_down": "postgres",
             "tenablesc_asset_artifacts_missing": "assets",
             "tenablesc_analysis_asset_filter_bad": "assets",
-            "nessus_service_down": "nessus",
             "tenablesc_scan_import_errors": "inspect",
         }
 

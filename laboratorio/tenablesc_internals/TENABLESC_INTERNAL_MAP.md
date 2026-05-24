@@ -3,9 +3,8 @@
 ## Lectura Ejecutiva
 
 El laboratorio actual es una instalacion Tenable.sc 6.8 dentro del contenedor
-`tenablesc-labbox-ol8`, con un scanner Nessus externo vinculado como
-`nessus_8835`. La pieza clave es que no debe interpretarse como un producto
-"solo PostgreSQL": el contenedor tuvo vida previa en una version 6.6, donde
+`tenablesc-labbox-ol8`. La pieza clave es que no debe interpretarse como un
+producto "solo PostgreSQL": el contenedor tuvo vida previa en una version 6.6, donde
 SQLite seguia siendo la base principal de muchas areas. En 6.8 aparece
 PostgreSQL como plano moderno para findings, assets normalizados, plugins y
 colas, pero siguen existiendo SQLite locales para configuracion de aplicacion,
@@ -63,7 +62,7 @@ flowchart TD
     Jobd --> PrepareAssets["prepareassetsWrapper.php"]
     PrepareAssets --> AssetsDB
     PrepareAssets --> AssetFiles["/opt/sc/orgs/1/assets/<group>/<repo>/*.ip/*.uuid/*.uuidd"]
-    Nessus["Nessus scanner :8835"] --> ScanResult["ScanResult / progress.db"]
+    ScanEngine["Scan execution"] --> ScanResult["ScanResult / progress.db"]
     ScanResult --> Jobd
     PHP --> Reports["ReportGenerateLib"]
     Reports --> FOP["Apache FOP + Java"]
@@ -84,7 +83,7 @@ flowchart TD
 | Redis | `/opt/sc/data/redis` | Cache de analysis y servicios internos | `redis-cli ping` devuelve `PONG` |
 | Microservicios | `microservice-supervisor.sh`, `sc-asset-svc` | Servicio interno de assets en puerto 8840 | Proceso vivo y HTTP responde, aunque pida autorizacion |
 | Analysis | `Analysis.php`, `AnalysisV2.php`, `VulnLib.php`, `showvulns`, `showvulnsv2` | Consultas de vulnerabilidades/compliance | `/analysis` con `sourceType=cumulative` y filtros de asset funciona |
-| Scans/import | `ScanResult`, `progress.db`, `importWrapper.php`, `universal_importdb` | Convertir resultados Nessus en repositorios, VDB y DB moderna | ScanResult pasa a Completed/Finished, sin `importStatus=Error` |
+| Scans/import | `ScanResult`, `progress.db`, `importWrapper.php`, `universal_importdb` | Convertir resultados de scan en repositorios, VDB y DB moderna | ScanResult pasa a Completed/Finished, sin `importStatus=Error` |
 | Reportes | `ReportGenerateLib.php`, `/opt/sc/fop`, Java, `/opt/sc/data/report` | Generar PDF/HTML/CSV segun reporting | `SC_ROOT=/opt/sc /opt/sc/fop/fop` devuelve comando Java |
 | Logs | `/opt/sc/admin/logs`, `/opt/sc/support/logs` | Evidencia de fallos reales | Sin errores recientes de Postgres/Redis/UUID/WebSocket/import |
 
@@ -142,7 +141,7 @@ no solo PostgreSQL.
 1. El usuario lanza un scan desde GUI/API.
 2. Tenable.sc usa la definicion del scan en `organization.db` y el scanner en
    `application.db`.
-3. Nessus ejecuta y devuelve resultados al job.
+3. El motor de escaneo configurado en Tenable.sc ejecuta y devuelve resultados al job.
 4. Durante ejecucion se usa `/opt/sc/data/scans/<job>/progress.db`.
 5. Jobd ejecuta `importWrapper.php`.
 6. El importador llama herramientas como `universal_importdb`.
@@ -154,8 +153,8 @@ no solo PostgreSQL.
     `showvulns` y/o `showvulnsv2` segun repo, tool, filtros y capacidades.
 
 Punto critico ya observado: si PostgreSQL esta caido durante importacion, el
-scan puede terminar en Tenable/Nessus pero fallar al importar con errores de
-conexion a `127.0.0.1:5432`.
+scan puede terminar pero fallar al importar con errores de conexion a
+`127.0.0.1:5432`.
 
 ## Flujo De Asset List A Filtro `/analysis`
 
@@ -261,7 +260,8 @@ Evidencia generada con `inspect_tenablesc_internals.py` el 2026-05-23:
   `.uuidd`; la presencia de `.uuidd` confirma que el repair de assets dejo
   materializacion para repos universal.
 
-La evidencia JSON esta en `laboratorio/tenablesc_internals/evidence/current_report.json`.
+El JSON de evidencia no se versiona por defecto; generarlo solo cuando haga
+falta una inspeccion profunda puntual.
 
 ## Comando De Inspeccion Profunda
 
@@ -310,8 +310,7 @@ Contrato que sigue siendo valido para Fase 1:
 ## Preguntas Abiertas
 
 1. Confirmar con scans repetidos si cambiar solo `reference` en un `.audit`
-   mantiene identidad de control en Tenable.sc igual que la evidencia inicial en
-   Tenable IO.
+   mantiene identidad de control en Tenable.sc.
 2. Confirmar si todos los repositorios de produccion seran universal y si
    `showvulnsv2` cubrira las tools necesarias para Fase 1A/1B.
 3. Definir que logs internos se pueden conservar como evidencia versionada sin

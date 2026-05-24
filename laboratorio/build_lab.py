@@ -5,7 +5,6 @@ import http.cookiejar
 import json
 import os
 import shutil
-import socket
 import ssl
 import subprocess
 import sys
@@ -28,7 +27,6 @@ ROOT_ENV_FILE = PROJECT_ROOT / ".env"
 NETWORK_NAME = "docker_labbox_default-ol8"
 
 TENABLESC_CONTAINER = "tenablesc-labbox-ol8"
-NESSUS_CONTAINER = "nessus_8835"
 
 LAB_CONTAINERS = {
     TENABLESC_CONTAINER: {
@@ -36,17 +34,12 @@ LAB_CONTAINERS = {
         "url": "https://localhost:8443",
         "data_path": "/opt/sc",
     },
-    NESSUS_CONTAINER: {
-        "image": "tenable/nessus:latest-ubuntu",
-        "url": "https://localhost:8835",
-        "data_path": "/opt/nessus",
-    },
 }
 
 LAB_IMAGES = {
     "tenablesc-labbox-image-ol8": "tenablesc-labbox-image-ol8.tar",
-    "tenable/nessus:latest-ubuntu": "tenable-nessus-latest-ubuntu.tar",
 }
+LAB_VOLUMES = ("tenablescdata-ol8", "tenablednfcache-ol8")
 LABBOX_ZIP_IMAGE = "labbox-docker/tenablesc-labbox-image-ol8.image"
 LABBOX_ZIP_UTILS_PREFIX = "labbox-docker/utils/"
 DEFAULT_LABBOX_ZIP = LAB_DIR / "labbox-docker.zip"
@@ -137,16 +130,6 @@ INCIDENT_CATALOG = {
         "severity": "warning",
         "repair": "inspect",
         "description": "Hay scan results con importStatus=Error o error similar.",
-    },
-    "nessus_service_down": {
-        "severity": "critical",
-        "repair": "nessus",
-        "description": "Nessus no tiene nessus-service/nessusd corriendo.",
-    },
-    "nessus_port_closed": {
-        "severity": "critical",
-        "repair": "nessus",
-        "description": "El puerto local 8835 de Nessus no acepta conexiones.",
     },
     "recent_known_errors": {
         "severity": "warning",
@@ -266,6 +249,16 @@ def ensure_network() -> None:
         run(["docker", "network", "create", NETWORK_NAME], capture=False)
 
 
+def volume_exists(name: str) -> bool:
+    return run(["docker", "volume", "inspect", name], check=False).returncode == 0
+
+
+def ensure_volumes() -> None:
+    for name in LAB_VOLUMES:
+        if not volume_exists(name):
+            run(["docker", "volume", "create", name], capture=False)
+
+
 def container_inspect(name: str) -> dict[str, Any] | None:
     completed = run(["docker", "inspect", name], check=False)
     if completed.returncode != 0:
@@ -333,14 +326,6 @@ def ensure_portable_env() -> dict[str, Any]:
         output.append("LABBOX_UTILS_PATH=./labbox-utils")
     DEFAULT_ENV_FILE.write_text("\n".join(output) + "\n", encoding="utf-8")
     return {"path": str(DEFAULT_ENV_FILE), "created": True, "source": str(source)}
-
-
-def tcp_open(host: str, port: int, timeout: float = 2.0) -> bool:
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except OSError:
-        return False
 
 
 def add_incident(incidents: list[dict[str, Any]], code: str, detail: str = "") -> None:
@@ -660,31 +645,6 @@ def collect_tenablesc_diagnostics(incidents: list[dict[str, Any]]) -> dict[str, 
     return report
 
 
-def collect_nessus_diagnostics(incidents: list[dict[str, Any]]) -> dict[str, Any]:
-    report: dict[str, Any] = {"container": container_state(NESSUS_CONTAINER)}
-    container = report["container"]
-    if not container.get("exists"):
-        add_incident(incidents, "container_missing", NESSUS_CONTAINER)
-        return report
-    if not container.get("running"):
-        add_incident(incidents, "container_stopped", NESSUS_CONTAINER)
-        return report
-    commands = {
-        "processes": "ps -eo user,pid,ppid,stat,comm,args | egrep 'nessus-service|nessusd' | grep -v egrep",
-        "nessuscli_version": "/opt/nessus/sbin/nessuscli --version",
-        "logs": "ls -lah /opt/nessus/var/nessus/logs 2>/dev/null | head -80",
-        "recent_errors": "tail -n 200 /opt/nessus/var/nessus/logs/nessusd.messages 2>/dev/null | grep -Ei 'error|critical|failed' | tail -30 || true",
-    }
-    checks = {name: decoded(docker_exec(NESSUS_CONTAINER, command)) for name, command in commands.items()}
-    report["checks"] = checks
-    if not checks["processes"]["ok"] or "nessusd" not in checks["processes"]["stdout"]:
-        add_incident(incidents, "nessus_service_down", checks["processes"]["stdout"])
-    if not tcp_open("127.0.0.1", 8835):
-        add_incident(incidents, "nessus_port_closed")
-    report["host_port_8835_open"] = tcp_open("127.0.0.1", 8835)
-    return report
-
-
 def collect_doctor_report() -> tuple[dict[str, Any], bool]:
     incidents: list[dict[str, Any]] = []
     report: dict[str, Any] = {
@@ -695,7 +655,6 @@ def collect_doctor_report() -> tuple[dict[str, Any], bool]:
         "images": {},
         "containers": {},
         "tenablesc": {},
-        "nessus": {},
         "incidents": incidents,
         "incident_catalog": INCIDENT_CATALOG,
     }
@@ -712,7 +671,6 @@ def collect_doctor_report() -> tuple[dict[str, Any], bool]:
             add_incident(incidents, "image_missing", image)
     report["containers"] = {name: container_state(name) for name in LAB_CONTAINERS}
     report["tenablesc"] = collect_tenablesc_diagnostics(incidents)
-    report["nessus"] = collect_nessus_diagnostics(incidents)
 
     critical = [incident for incident in incidents if incident["severity"] == "critical"]
     return report, not critical
@@ -855,19 +813,6 @@ def prepare_assets(args: argparse.Namespace) -> int:
     return 0
 
 
-def repair_nessus() -> None:
-    state = container_state(NESSUS_CONTAINER)
-    if not state.get("exists"):
-        run(compose_command() + ["--env-file", str(env_file_for_compose()), "-f", str(COMPOSE_FILE), "up", "-d", "nessus"], capture=False)
-        return
-    if not state.get("running"):
-        run(["docker", "start", NESSUS_CONTAINER], capture=False)
-        return
-    processes = docker_exec(NESSUS_CONTAINER, "pgrep -af 'nessus-service|nessusd'", check=False)
-    if processes.returncode != 0 or "nessusd" not in text(processes):
-        run(["docker", "restart", NESSUS_CONTAINER], capture=False)
-
-
 def repair(args: argparse.Namespace) -> int:
     case = args.case
     if case == "auto":
@@ -882,17 +827,12 @@ def repair(args: argparse.Namespace) -> int:
             repair_runtime()
         if "assets" in repair_cases:
             prepare_assets(argparse.Namespace(repositories=args.repositories, context=args.context))
-        if "nessus" in repair_cases:
-            repair_nessus()
     elif case in {"all", "runtime", "postgres"}:
         repair_runtime()
         if case == "all":
             prepare_assets(argparse.Namespace(repositories=args.repositories, context=args.context))
-            repair_nessus()
     elif case == "assets":
         prepare_assets(argparse.Namespace(repositories=args.repositories, context=args.context))
-    elif case == "nessus":
-        repair_nessus()
     else:
         raise LabError(f"Unknown repair case: {case}")
     report, ok = collect_doctor_report()
@@ -991,6 +931,7 @@ def up(_: argparse.Namespace) -> int:
     if not docker_available():
         raise LabError("Docker is not available")
     ensure_network()
+    ensure_volumes()
     load_images(argparse.Namespace())
     if not image_exists("tenablesc-labbox-image-ol8"):
         raise LabError(
@@ -1118,7 +1059,7 @@ def incidents(_: argparse.Namespace) -> int:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build, diagnose and repair the Tenable.sc + Nessus lab.")
+    parser = argparse.ArgumentParser(description="Build, diagnose and repair the Tenable.sc lab.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     p = subparsers.add_parser("status", help="Show Docker/image/container state.")
@@ -1133,7 +1074,7 @@ def parse_args() -> argparse.Namespace:
     p.set_defaults(func=doctor)
 
     p = subparsers.add_parser("repair", help="Repair known lab incident cases.")
-    p.add_argument("--case", default="auto", choices=["auto", "all", "runtime", "postgres", "assets", "nessus"])
+    p.add_argument("--case", default="auto", choices=["auto", "all", "runtime", "postgres", "assets"])
     p.add_argument("--repositories", default="6,8,9,10")
     p.add_argument("--context", type=int, default=37)
     p.add_argument("--json", action="store_true")

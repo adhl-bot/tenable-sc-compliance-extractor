@@ -16,8 +16,7 @@ soportan decisiones ya adoptadas o pruebas concretas.
 ## Reglas
 
 - Registrar aqui resultados de API, scan results, consultas `/analysis`,
-  comparativas GUI/API, importaciones, evidencias Tenable IO y salidas de
-  validacion funcional.
+  comparativas GUI/API y salidas de validacion funcional de Tenable.sc.
 - No documentar aqui como levantar o reparar el laboratorio; eso vive en
   `laboratorio/README.md`.
 - No guardar credenciales reales.
@@ -28,12 +27,6 @@ soportan decisiones ya adoptadas o pruebas concretas.
   `CHALLENGES.md`.
 
 ## Comandos de validacion funcional
-
-Probar API Tenable IO / Vulnerability Management:
-
-```powershell
-python scripts\tenable_io_probe.py --sample-size 5 --max-text-len 160
-```
 
 Probar reemplazo in-place de un `.audit` temporal en Tenable.sc:
 
@@ -118,6 +111,13 @@ Validacion funcional para `compliance_example`:
 - `/auditFile` devolvio 14 audit files usables en la investigacion inicial.
 - `assetID=0` con `auditFileID=1000010` devolvio 30 controles por
   `sumseverity` y `vulndetails`: 11 con severidad 0 y 19 con severidad 3.
+- En las evidencias locales actuales si existen registros `pluginType=compliance`
+  sin `<cm:compliance-result>` parseable. En
+  `outputs/compliance_hypotheses_validation_asset2_allaudits_20260523.json`,
+  la matriz `severity_to_compliance_result` contiene `3:<missing> = 2`; ambos
+  registros corresponden a `pluginID=33929` (`PCI DSS compliance`) con
+  `compliance_results` vacio. Tambien aparecen 3 casos en
+  `outputs/validation_hypotheses_details_20260523.json`.
 - En `vulndetails`, `<cm:compliance-audit-file>` no siempre coincide con
   `/auditFile.name`, `/auditFile.filename` u `/auditFile.originalFilename`.
 
@@ -231,8 +231,8 @@ Revision del 2026-05-23:
 - Ultimos scanResults revisados: `25099`, `25100`, `25101`, `25102` y `25103`.
 - Los scanResults Windows con datos de compliance (`25099`, `25100`, `25101` y
   `25103`) mantuvieron `auditFileID=1000018` como audit registrado/ejecutado.
-- El audit observado en `.nessus` y `pluginText` cambio en cada ejecucion como
-  copia `...-scfile_*`.
+- El audit observado en `pluginText` cambio en cada ejecucion como copia
+  `...-scfile_*`.
 - El scanResult `25102` era WAS `Partial/No Results` y no tenia audit file
   aplicable.
 - En esas ejecuciones, el audit observado de `auditFileID=1000018` mantuvo el
@@ -250,7 +250,7 @@ Revision del 2026-05-23:
   ejecutado.
 - Conclusion: `auditFileID` sirve para filtrar/agrupar cuando el audit
   registrado es resoluble, pero la prueba de audit ejecutado debe contrastarse
-  con policy y/o `.nessus` cuando haya dudas.
+  con policy y/o audit observado cuando haya dudas.
 
 ### Parcheo de audit files
 
@@ -264,36 +264,304 @@ Revision del 2026-05-23:
   controlada, pero no debe ser la via por defecto en produccion porque evita
   validaciones de API y puede dejar metadatos o caches sin actualizar.
 
-## Tenable IO secundario
+### Prueba `win10_fullaudit.audit` + segundo audit CV2
 
-Alcance de la evidencia:
+Validacion del 2026-05-24:
 
-- URL: `https://cloud.tenable.com/`.
-- Aplicacion en alcance: `Vulnerability Management`.
-- Autenticacion mediante `TENABLE_IO_ACCESS_KEY` y `TENABLE_IO_SECRET_KEY`.
-- Recurso API principal: `https://developer.tenable.com/reference/navigate`.
+- Se reemplazo por API el contenido de `auditFileID=1000018` con
+  `win10_fullaudit.audit`, conservando el ID registrado. El audit file quedo
+  con `name=win10_fullaudit.audit`, `originalFilename=win10_fullaudit.audit` y
+  `filename=scfile_xkqXyD`.
+- El segundo audit de la prueba se mantuvo como `auditFileID=1000023`
+  (`win_10_MODIFICADO_v2_segundo_compliance`, `filename=scfile_UZrH6U`).
+- La policy `[COMPLIANCE] multiple_audits` (`policyID=1000009`) quedo asociada
+  a `auditFileID=1000018` y `auditFileID=1000023`.
+- Se lanzo el scan `win_10_MODIFICADO` (`scan.id=10`) y genero
+  `scanResult=25110`, `status=Completed`, `importStatus=Finished`,
+  `completedChecks=27822`, `finishTime=1779591447` e
+  `importFinish=1779591475`.
+- En `cumulative`, contra `assetID=118`, `pluginType=compliance` y
+  `auditFileID=1000018`, `/analysis` con `vulndetails` devolvio
+  `totalRecords=332`. El control `[1.1.1] ... [CV1]` quedo como
+  `pluginID=1003966`, `severity.id=3`, `lastSeen=1779591450` y
+  `vulnUUID=04176d51-7000-49e6-99ef-076b339b29eb`.
+- En `cumulative`, contra el mismo Asset List y `auditFileID=1000023`,
+  `/analysis` con `vulndetails` devolvio `totalRecords=2`. El control
+  `[1.1.1] ... [CV2]` quedo como `pluginID=1004311`, `severity.id=0`,
+  `lastSeen=1779591450` y
+  `vulnUUID=029615da-a8ba-47e3-8c34-e1fca4e260e5`.
+- Durante la ejecucion se observo un scan concurrente creado desde GUI
+  (`Fullsafe_scan`, `scan.id=12`, `scanResult=25111`). No se uso para la
+  evidencia de esta validacion.
 
-Reglas:
+### Incidencia importacion vulnerabilidades con PostgreSQL caido
 
-- No guardar API keys reales en documentacion, codigo, tests ni ejemplos.
-- No mezclar resultados Tenable IO con Tenable.sc sin campo de procedencia.
-- La evidencia obtenida en Tenable IO debe marcarse como tal y no extrapolarse
-  automaticamente a Tenable.sc.
+Validacion del 2026-05-24:
 
-Validacion del 2026-05-23:
+- El scan `Fullsafe_scan` genero `scanResult=25113`, `status=Completed` e
+  `importStatus=Error`.
+- El error de importacion avanzo hasta escribir/exportar bases `cumulative` y
+  `patched`, pero fallo al abrir PostgreSQL interno:
+  `Error opening postgres DB ... 127.0.0.1:5432 ... Connection refused`.
+- El scan `cred_check` genero `scanResult=25114` con el mismo patron de
+  `importStatus=Error`. En ese caso tambien se observo que
+  `192.168.1.135` no hizo match con assets existentes antes del fallo de
+  PostgreSQL.
+- Tras arrancar PostgreSQL interno, la validacion minima del laboratorio quedo
+  sin incidencias criticas.
+- Estado validado posterior: PostgreSQL respondio `select 1`, Tenable.sc quedo
+  `running`, `/analysis` devolvio `343` registros con
+  `vulndetails` para `assetID=118` y se genero
+  `outputs/compliance_example_details.json` con `record_count=343`.
+- Tras recrear Tenable.sc con arranque automatico de servicios internos y
+  ejecutar `validate`, los scan results `25113` y `25114` aparecieron con
+  `importStatus=Finished` y `scan_result_import_error_sample` quedo vacio.
+- Conclusion: un `scanResult` en `status=Completed` no garantiza resultados
+  explotables; para vulnerabilidades y compliance hay que revisar
+  `importStatus=Finished` o confirmar los datos via `/analysis`.
 
-- Autenticacion con API keys validada.
-- Pruebas reproducibles con `scripts/tenable_io_probe.py`.
-- Tag dinamico recuperado: `Operating_System:Windows Workstation`, UUID
-  `969a4db5-ad14-41e0-97f8-0087960b8f19`.
-- Asset de laboratorio: UUID `b174d8b6-fc65-426e-a94b-cb20271a7c4c`, IP
-  `192.168.1.138`, sistema operativo `Microsoft Windows 10 Pro Build 19045`.
-- `GET /workbenches/assets/{asset_id}/info?all_fields=full` devolvio contadores
-  de audits: total `5`, con `2 Passed`, `1 Error`, `2 Failed`.
-- `POST /compliance/export` genero un export finalizado con un chunk y `5`
-  findings de compliance.
-- Campos utiles observados: `asset_uuid`, `plugin_id`, `plugin_name`,
-  `check_name`, `status`, `state`, `audit_file`, `actual_value`,
-  `expected_value`, `reference`, `compliance_full_id`,
-  `compliance_functional_id`, `compliance_informational_id`, `last_observed`
-  y `last_seen`.
+### H07 - Control comentado en `naming_convention_win10_fullaudit`
+
+Validacion del 2026-05-24:
+
+- Se comento el control
+  `[1.1.2][MS][W10][N/A][v4.0.0][L1] Ensure 'Maximum password age' is set to '365 or fewer days, but not 0'`
+  en `naming_convention_win10_fullaudit.audit`.
+- Se aplico el fichero por API sobre `auditFileID=1000018`, conservando el ID
+  registrado y cambiando el `filename` interno de `scfile_TfGRAr` a
+  `scfile_njK36B`.
+- Se lanzo el mismo scan `win_10_MODIFICADO` (`scan.id=10`) y genero
+  `scanResult=25125`, `status=Completed`, `importStatus=Finished`,
+  `completedChecks=27822`, `finishTime=1779641657` e
+  `importFinish=1779641663`, sin `importErrorDetails`.
+- Antes del cambio, `assetID=118` + `auditFileID=1000018` acotado al
+  repositorio `Default` (`9`) devolvia `332` registros. El control comentado
+  aparecia con `pluginID=1005137`.
+- Despues del scan, `assetID=118` + `auditFileID=1000018` acotado al
+  repositorio `Default` (`9`) devolvio `331` registros. El control
+  `pluginID=1005137` no aparecio con ese filtro.
+- Al consultar `assetID=118` + `pluginType=compliance` sin `auditFileID`,
+  acotado al repositorio `Default` (`9`), el control `pluginID=1005137` siguio
+  visible como resultado antiguo con `lastSeen=1779635112` y tags `cm`
+  parseables:
+  `<cm:compliance-result>PASSED</cm:...>` y
+  `<cm:compliance-audit-file>...</cm:...>`.
+- En las consultas revisadas de `assetID=118` no aparecieron registros
+  `pluginType=compliance` sin `<cm:compliance-result>` y sin
+  `<cm:compliance-audit-file>`.
+- El filtro temporal `lastSeen` acepta formato epoch `inicio-fin`. La ventana
+  anterior `1779635000-1779637000` devolvio `335` registros sin `auditFileID`,
+  incluyendo el control eliminado `pluginID=1005137` en el repositorio
+  `Default` (`9`) con `lastSeen=1779635112`.
+- La ventana actual `1779641000-1779642000`, posterior al scan que ya tenia el
+  control comentado, devolvio `335` registros sin `auditFileID` y `0`
+  apariciones de `pluginID=1005137`. Acotando ademas por
+  `auditFileID=1000018`, la misma ventana devolvio `331` registros y tambien
+  `0` apariciones del control eliminado.
+- Esto valida que una ventana temporal suficientemente reciente sobre
+  `lastSeen` elimina de la vista amplia los controles que no se volvieron a
+  observar. Sin filtro temporal, esos controles pueden seguir visibles como
+  resultados antiguos.
+- Conclusion: comentar/eliminar un control del `.audit` no genera por si solo
+  registros sin tags `cm`. El control desaparece de la vista acotada por el
+  `auditFileID` actual, pero puede permanecer en la consulta amplia como
+  resultado antiguo con sus tags `cm` originales. Esta prueba no confirma la
+  hipotesis H07; la duda solo seguiria abierta para casos de audit registrado
+  no resoluble o borrado/desregistrado.
+
+### H07 - Audit desregistrado con resultados historicos
+
+Validacion del 2026-05-24:
+
+- Audit usado como prueba controlada: `auditFileID=1000023`,
+  `name=win_10_MODIFICADO_v2_segundo_compliance`,
+  `filename=scfile_UZrH6U`, `uuid=AA6DB420-8AFF-4FE8-8298-8392A05359D9`,
+  descripcion `Temporary Codex probe; safe to delete`.
+- Antes del borrado, `/policy/1000009` referenciaba `auditFileID=1000018` y
+  `auditFileID=1000023`.
+- Antes del borrado, `/analysis` con `assetID=118`,
+  `pluginType=compliance` y `auditFileID=1000023` devolvio `5` registros:
+  `3` en repositorio `10` (`compliance`) y `2` en repositorio `9` (`Default`).
+- Registros asociados antes del borrado:
+  `pluginID=1003714`, `pluginID=1004311` y `pluginID=1004312`. Todos tenian
+  `<cm:compliance-result>PASSED</cm:...>` y
+  `<cm:compliance-audit-file>...</cm:...>`.
+- Se desregistro el audit con `DELETE /auditFile/1000023`. La llamada devolvio
+  `error_code=0`.
+- Despues del borrado, `GET /auditFile/1000023` fallo con
+  `error_code=145` (`Unable to retrieve AuditFile #1000023`) y `/auditFile`
+  ya no listo el ID. La policy `1000009` quedo referenciando solo
+  `auditFileID=1000018`.
+- Despues del borrado, `/analysis` con `assetID=118`,
+  `pluginType=compliance` y `auditFileID=1000023` fallo con `error_code=143`
+  (`Permission denied for filtering on Audit File #1000023`).
+- Despues del borrado, la consulta amplia `assetID=118` +
+  `pluginType=compliance` siguio devolviendo los `5` registros historicos de
+  `pluginID=1003714`, `pluginID=1004311` y `pluginID=1004312`.
+- Esos `5` registros historicos conservaron sus tags `cm` parseables:
+  `<cm:compliance-result>` y `<cm:compliance-audit-file>`. En la consulta
+  amplia de `assetID=118` no aparecieron registros sin ambos tags `cm`.
+- Conclusion: borrar/desregistrar un audit file registrado no convierte los
+  resultados historicos asociados en registros sin tags `cm`; simplemente deja
+  de poder usarse el `auditFileID` eliminado como filtro. La hipotesis H07 queda
+  rechazada para el comportamiento controlado de controles custom/audits
+  desregistrados en este laboratorio.
+
+### H08/H09 - Cambio de tipo y duplicado con mismo `description`
+
+Validacion del 2026-05-24:
+
+- Fuente de sintaxis: `NessusComplianceChecksReference.pdf`, seccion Windows
+  `AUDIT_POWERSHELL`. La prueba uso `powershell_args:
+  "get-wmiobject win32_operatingsystem"`, un cmdlet `get-` explicito y sin
+  aliases, con `value_type: POLICY_TEXT`, `value_data: ".*Windows.*"` y
+  `check_type: CHECK_REGEX`.
+- Control probado:
+  `[1.1.1][MS][W10][N/A][v4.0.0][L1][CV1] Ensure 'Enforce password history' is set to '24 or more password(s)'`.
+- Baseline antes de la prueba: en `assetID=118`, `repositoryIDs=9`,
+  `pluginType=compliance` y `auditFileID=1000018`, el control aparecia una sola
+  vez con `pluginID=1005136`,
+  `vulnUUID=d05adfed-812a-4618-9284-0a679183dd10`, `firstSeen=1779635112`,
+  `lastSeen=1779641660`, resultado `FAILED`, `policy_value=[24..4294967295]`
+  y `actual_value=0`.
+- Variante 1: se sustituyo el bloque original `type: PASSWORD_POLICY` por un
+  bloque `type: AUDIT_POWERSHELL`, manteniendo exactamente la misma
+  `description`. Se aplico por API sobre `auditFileID=1000018`, cambiando el
+  `filename` interno de `scfile_njK36B` a `scfile_SQy46P`.
+- El scan usado fue `scan.id=17` (`naming_convention_win10_fullaudit`), porque
+  `scan.id=10` estaba deshabilitado. El scan 17 usa `assetID=118`,
+  repositorio `9` y una policy cuyo unico audit file es `auditFileID=1000018`.
+- La variante 1 genero `scanResult=25127`, `status=Completed`,
+  `importStatus=Finished`, `completedChecks=27822`, `finishTime=1779647244` e
+  `importFinish=1779647254`.
+- Resultado de variante 1: el control mantuvo `pluginID=1005136`,
+  `vulnUUID=d05adfed-812a-4618-9284-0a679183dd10` y `firstSeen=1779635112`; el
+  `lastSeen` avanzo a `1779647247`. El resultado cambio a `ERROR`, con
+  `policy_value` observado `AUDIT_POWERSHELL value_data: '.*Windows.*'` y audit
+  observado `60fcd0ae-b5fd-5261-8a4b-39a17ce439e3-730538-scfile_SQy46P`.
+- Variante 2: se mantuvo el bloque `AUDIT_POWERSHELL` y se anadio de nuevo,
+  sin cambios, la copia exacta del bloque original `PASSWORD_POLICY`, dejando
+  dos bloques vivos con la misma `description` dentro del mismo `.audit`. Se
+  aplico por API sobre `auditFileID=1000018`, cambiando el `filename` interno a
+  `scfile_FayJp5`.
+- La variante 2 genero `scanResult=25128`, `status=Completed`,
+  `importStatus=Finished`, `completedChecks=27822`, `finishTime=1779647815` e
+  `importFinish=1779647822`.
+- Resultado de variante 2: `/analysis` mantuvo `totalRecords=331` para
+  `assetID=118`, `repositoryIDs=9`, `pluginType=compliance` y
+  `auditFileID=1000018`. Para la `description` duplicada devolvio un unico
+  registro, no dos, con `pluginID=1005136`,
+  `vulnUUID=d05adfed-812a-4618-9284-0a679183dd10` y `lastSeen=1779647819`.
+- En ese unico registro, `pluginText` incluyo resultados compuestos: dos
+  `<cm:compliance-result>` (`ERROR` y `FAILED`) y dos
+  `<cm:compliance-actual-value>` (vacio y `0`). La severidad visible quedo en
+  `severity.id=3`.
+- Conclusiones:
+  - Cambiar el tipo tecnico del control manteniendo exactamente la misma
+    `description` no cambio el `pluginID` ni el `vulnUUID`; Tenable.sc actualizo
+    el resultado del control existente.
+  - Dos bloques vivos con la misma `description` dentro del mismo `.audit`,
+    incluso con tipos distintos, colapsan en un unico control visible en
+    `cumulative` y pueden acumular varios resultados dentro del mismo
+    `pluginText`.
+  - Si dos versiones deben coexistir como controles diferentes, hay que
+    diferenciarlas en la `description`, por ejemplo con `[CV1]` y `[CV2]`.
+
+### Catalogo simulado multi-OS y roles
+
+Validacion del 2026-05-24:
+
+- Se preparo un catalogo base para montar scans de simulacion por OS y rol:
+  `REAL_win10.audit`, `SIMULATE_MS_SRV_DM.audit`,
+  `SIMULATE_MS_SRV_DC.audit` y `OL_8.audit`.
+- `REAL_win10.audit` parte de `naming_convention_win10_fullaudit.audit`, sin el
+  duplicado de prueba del control `[1.1.1]`, sin sufijo `[CV1]` y con el
+  control `[1.1.2]` activo de nuevo.
+- `SIMULATE_MS_SRV_DM.audit` y `SIMULATE_MS_SRV_DC.audit` son copias simuladas
+  de Windows Server 2016 con roles `[DM]` y `[DC]` en la naming convention:
+  `[<control_id>][MS][2016][DM|DC][v4.0.0][L1] <titulo>`.
+- `OL_8.audit` parte de `CIS_Oracle_Linux_8_v4.0.0_L1_Server.audit` y aplica la
+  naming convention `[<control_id>][OL][8][N/A][v4.0.0][L1] <titulo>` a las
+  descripciones de controles CIS que empiezan por identificador numerico.
+- En los cuatro ficheros se asignaron valores reproducibles de `CONTROL_IG|IGx`
+  y exactamente cuatro controles por fichero quedaron con
+  `CONTROL_INTERNAL_VERSION|1`; el resto quedo con
+  `CONTROL_INTERNAL_VERSION|0`.
+- En los audits Windows Server se anadieron `CONTROL_MS_ONLY|true|false` y
+  `CONTROL_DC_ONLY|true|false`. En `SIMULATE_MS_SRV_DM` hay 5 controles con
+  `CONTROL_MS_ONLY|true`; en `SIMULATE_MS_SRV_DC` hay 5 controles con
+  `CONTROL_DC_ONLY|true`.
+- Subida a Tenable.sc:
+  - `REAL_win10`: `auditFileID=1000018`, `uuid=FE62386B-43FD-4A79-A945-25D79991601C`,
+    `filename=scfile_aZlohn`, `type=windows`.
+  - `SIMULATE_MS_SRV_DM`: `auditFileID=1000026`,
+    `uuid=5B573F25-61A3-428A-B867-A332F7E4E1F2`, `filename=scfile_4vtwLw`,
+    `type=windows`.
+  - `SIMULATE_MS_SRV_DC`: `auditFileID=1000027`,
+    `uuid=579BB3D4-76BD-466F-8D66-0B51B22F55F5`, `filename=scfile_es4Gu5`,
+    `type=windows`.
+  - `OL_8`: `auditFileID=1000028`,
+    `uuid=AA7E0DB9-328C-4EB5-BDBC-D9747FD872D9`, `filename=scfile_JM4CC2`,
+    `type=unix`.
+- Verificacion: para los cuatro audit files, el export de Tenable.sc coincide
+  byte a byte normalizado con el fichero local (`local_export_same_normalized =
+  true`). La evidencia tecnica queda en
+  `outputs/catalog_audit_generation_summary.json`,
+  `outputs/catalog_audit_create_remaining_results.json` y
+  `outputs/catalog_audit_upload_verification.json`.
+
+### Audits ligeros para retest de hipotesis
+
+Contexto operativo definido el 2026-05-24:
+
+- Se crearon dos `.audit` minimos para relanzar pruebas de comportamiento sin
+  ejecutar el catalogo completo:
+  - `light_check_win_10.audit`: `auditFileID=1000029`, `uuid=532741DA-6D80-414D-9A13-654E7BAD37C5`,
+    `type=windows`, `filename=scfile_89zOsm`.
+  - `light_check_ol_8.audit`: `auditFileID=1000030`, `uuid=8D274181-831C-45CE-A0CD-5C89C436B58F`,
+    `type=unix`, `filename=scfile_crEUjF`.
+- Los controles elegidos son deliberadamente baratos:
+  - Windows: `[18.10.15.1]` y `[18.10.15.2]`, ambos `REGISTRY_SETTING` de una
+    sola lectura.
+  - Oracle Linux 8: `[7.1.1]` y `[7.1.3]`, ambos `FILE_CHECK` sobre ficheros
+    pequenos (`/etc/passwd` y `/etc/group`).
+- Los dos exports posteriores a la subida contenian los dos controles
+  esperados y coincidian con el cuerpo local exacto. Evidencia local:
+  `outputs/light_check_audit_uploads_latest.json`.
+
+### Escenario Tenable.sc para queries KPI
+
+Contexto operativo definido el 2026-05-24:
+
+- Asset Lists de alcance:
+  - `compliance_windows` (`assetID=118`): scope Windows.
+  - `compliance_linux` (`assetID=122`): scope Linux.
+  - `compliance_devices_mix` (`assetID=121`): scope mixto Windows + Linux.
+- Repositorios activos:
+  - `compliance_ws` (`repositoryID=14`): destino de resultados del audit
+    `REAL_win10`.
+  - `compliance_srv` (`repositoryID=13`): destino de resultados de
+    `SIMULATE_MS_SRV_DM`, `SIMULATE_MS_SRV_DC` y `OL_8`.
+  - `compliance_test` (`repositoryID=16`): destino de resultados de pruebas
+    rapidas y retests ligeros.
+- Los repositorios antiguos se consideran eliminados o fuera del escenario
+  funcional actual. Las evidencias anteriores que los mencionan quedan como
+  historico de validacion.
+- Nota de lectura: las referencias previas a `naming_convention_win10_fullaudit`,
+  `compliance_example` o repositorio `Default` (`9`) no se actualizan
+  retroactivamente porque documentan pruebas ejecutadas antes del catalogo
+  actual.
+- Implicacion para las proximas queries:
+  - Workstation Windows: `assetID` de `compliance_windows`,
+    `auditFileID=1000018` (`REAL_win10`) y `repositoryIDs` de
+    `compliance_ws` (`14`).
+  - Servidores Windows/Linux simulados: `assetID` de
+    `compliance_windows`, `compliance_linux` o `compliance_devices_mix` segun
+    alcance, `auditFileID` de `SIMULATE_MS_SRV_DM` (`1000026`),
+    `SIMULATE_MS_SRV_DC` (`1000027`) u `OL_8` (`1000028`), y `repositoryIDs`
+    de `compliance_srv` (`13`).
+  - Retest ligero: `assetID` de `compliance_windows` con
+    `auditFileID=1000029` (`light_check_win_10`) o `assetID` de
+    `compliance_linux` con `auditFileID=1000030` (`light_check_ol_8`), siempre
+    acotado a `repositoryIDs=16` (`compliance_test`) cuando se quiera aislar la
+    prueba.

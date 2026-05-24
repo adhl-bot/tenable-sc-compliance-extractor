@@ -2,191 +2,338 @@
 
 Este fichero es el registro canonico de hipotesis pendientes de validacion.
 
-Las hipotesis referentes al comportamiento de Tenable.sc, Tenable IO, Nessus,
-`.audit`, `/analysis`, identidad de controles, estados de compliance, Asset
-Lists o correlacion de scans deben vivir aqui y no repetirse en otros Markdown.
+Alcance activo: comportamiento temporal de los `.audit`, sus controles y los
+scan results de compliance en Tenable.sc.
 
-Reglas de mantenimiento:
+Quedan descartadas de este registro las hipotesis generales sobre volumen de
+`pluginText`, KPIs, severidad, Asset Lists, despliegue o seleccion de alcance.
+Si alguna decision confirmada de esas areas sigue siendo util, debe vivir en
+`agents.md` o `ESTANDARES_ADOPTADOS.md`, no aqui.
 
-- `agents.md` puede enlazar este fichero, pero no debe mantener listados
-  paralelos de hipotesis pendientes.
-- `ESTANDARES_ADOPTADOS.md`, `README.md` y `HARNESS_DESARROLLO.md` pueden
-  describir reglas ya confirmadas o el protocolo de trabajo, pero no duplicar
-  el contenido de este registro.
-- Cuando una hipotesis se confirme, mover la decision o patron confirmado a
-  `agents.md` o `ESTANDARES_ADOPTADOS.md`, y actualizar o retirar la entrada
-  de este fichero.
-- Cuando una hipotesis se descarte, marcarla como `Rechazada` con evidencia
-  minima y fecha.
-- Cada entrada debe indicar estado, alcance, validacion necesaria y evidencia.
+## Decisiones ya comprobadas
 
-Estados permitidos:
+Estas decisiones no son hipotesis activas:
+
+- Cambiar el nombre de un control en el campo `description` del `.audit` crea
+  un control nuevo visible en Tenable.sc.
+- Modificar otros campos funcionales del control no crea un control nuevo en
+  `cumulative`; el resultado se actualiza tras ejecutar de nuevo el scan.
+- Si el mismo control existe dos veces dentro de un `.audit`, Tenable.sc agrupa
+  ambas ejecuciones en un unico control visible en `cumulative` y muestra los
+  dos resultados dentro del output del registro.
+- Si un control se comenta en el `.audit` para que no se ejecute, desaparece
+  de la vista `cumulative` acotada por el `auditFileID` actual tras el nuevo
+  scan. En una consulta amplia por Asset List y `pluginType=compliance`, puede
+  seguir apareciendo el resultado anterior con un `lastSeen` antiguo. Si se
+  anade una ventana temporal `lastSeen` suficientemente reciente, el resultado
+  antiguo queda fuera y solo se ven los controles observados en esa ventana.
+- Ejecutar el mismo Asset List con el mismo `auditFileID` desde una policy
+  distinta no crea una separacion visible por policy en `cumulative`; los
+  controles mantienen continuidad y se actualiza `lastSeen`.
+- El campo `reference` es el lugar preferente para enriquecer controles con
+  metadatos propios: esta pensado como pares `clave|valor`, aparece en
+  `<cm:compliance-reference>` y puede consultarse desde API y GUI.
+- Para trazabilidad se debe conservar tanto el audit registrado cuando exista
+  (`auditFileID`) como el audit observado en el resultado
+  (`<cm:compliance-audit-file>` o valor equivalente del scan result).
+- Para seguir el audit ejecutado en el modelo funcional basta distinguir:
+  `auditFileID` como identificador registrado/filtro de `cumulative`, el prefijo
+  estable del audit observado como trazabilidad del audit ejecutado, y el valor
+  completo observado `...-scfile_*` como copia concreta de una ejecucion.
+- Si controles de distintos `.audit` tienen exactamente el mismo `description`,
+  Tenable puede generar/reutilizar el mismo `pluginID`; ese solape puede hacer
+  que un control aparezca incluso al filtrar por un `auditFileID` concreto.
+- Para evitar colisiones en audits custom de produccion desde cero, el
+  `description` debe seguir el patron
+  `[control_id][OS][OS_VERSION][ROLE][BENCHMARK_VERSION][LEVEL] <titulo original>`.
+  Todos los campos de identidad van entre corchetes, sin separador entre bloques,
+  y el titulo se conserva como lo da Tenable.
+- `reference` debe incluir como minimo `CONTROL_IG|IGx` y
+  `CONTROL_INTERNAL_VERSION|x`. La version interna del control queda en
+  `reference` para trazabilidad evolutiva, pero no modifica el identificador
+  unico del control.
+- Los campos propios de enriquecimiento en `reference` deben empezar por
+  `CONTROL_`. En audits Microsoft Server, `CONTROL_MS_ONLY|true|false` y
+  `CONTROL_DC_ONLY|true|false` indican aplicabilidad exclusiva a Member Server o
+  Domain Controller; fuera de audits Microsoft Server no aplican.
+- Si dos versiones vivas del mismo control deben coexistir, anadir un campo
+  visible `[CVx]` al `description`; usarlo solo para coexistencia real, no para
+  cada cambio interno.
+- Cambiar el `type` tecnico de un control manteniendo exactamente el mismo
+  `description` no separa la identidad del control en `cumulative`; Tenable.sc
+  mantiene `pluginID` y `vulnUUID` y actualiza el resultado del control
+  existente.
+- Si dos bloques vivos del mismo `.audit` tienen exactamente el mismo
+  `description`, incluso con tipos tecnicos distintos, Tenable.sc los colapsa
+  en un unico control visible en `cumulative` y puede incluir varios resultados
+  dentro del mismo `pluginText`.
+
+## Filtros estandar de validacion
+
+Toda validacion de comportamiento temporal debe consultar `sourceType=cumulative`
+con, como minimo:
+
+- Un Asset List concreto mediante `assetID=<id>`.
+- `pluginType=compliance`.
+
+Filtros adicionales como `auditFileID`, `repositoryIDs`, `pluginID` o
+`scanResultID` pueden anadirse segun la prueba, pero no sustituyen a esos dos
+filtros base. Si se usa fallback por `ip` para una Asset List estatica, debe
+quedar documentado como contingencia y la evidencia debe seguir asociada al
+Asset List original.
+
+Cuando la prueba busque el estado actual de un audit registrado, usar tambien
+`auditFileID=<id>`; sin ese filtro, `cumulative` puede mezclar resultados
+actuales del audit con resultados anteriores de controles que ya no se ejecutan.
+
+## Estados permitidos
 
 - `Pendiente`: aun no hay prueba suficiente.
 - `En validacion`: hay pruebas parciales, pero falta cerrar la conclusion.
 - `Confirmada`: probada en laboratorio Tenable.sc o fuente oficial aplicable.
 - `Rechazada`: probada y descartada.
 
-## H01 - Volumen de `pluginText`
+## H01 - Identificador temporal del audit ejecutado
 
-- Estado: `Pendiente`.
-- Alcance: Fase 1A / salida JSON.
-- Hipotesis: el JSON final podria no necesitar `pluginText` completo si los
-  campos parseados y un hash permiten reconstruir trazabilidad suficiente.
-- Validacion necesaria: comparar volumen, campos requeridos para Splunk,
-  auditoria posterior y capacidad de reconstruir host, control, resultado,
-  audit y asset.
-- Evidencia actual: Fase 1A usa `vulndetails` porque `pluginText` permite
-  extraer campos como `actual_value`.
+- Estado: `Confirmada`.
+- Alcance: Tenable.sc / Asset List / `.audit` / `cumulative`.
+- Conclusion: para el extractor no se necesita una unica clave historica global.
+  El modelo funcional queda cubierto con tres campos:
+  `auditFileID` como identificador registrado y filtro de estado latest en
+  `cumulative`, el prefijo estable del audit observado como trazabilidad del
+  audit ejecutado, y el valor completo observado `...-scfile_*` como copia
+  concreta de la ejecucion.
+- Regla de consulta: cuando se busca estado actual en `cumulative`, usar
+  `assetID`, `pluginType=compliance` y `auditFileID`. Esto es especialmente
+  importante para descartar controles que ya no pertenecen al audit actual,
+  porque sin `auditFileID` pueden seguir apareciendo resultados antiguos del
+  mismo Asset List.
+- Evidencia: en las ejecuciones revisadas de `auditFileID=1000018`, el audit
+  observado mantuvo el prefijo estable
+  `60fcd0ae-b5fd-5261-8a4b-39a17ce439e3`, mientras cambiaron las copias
+  concretas observadas, por ejemplo
+  `60fcd0ae-b5fd-5261-8a4b-39a17ce439e3-710000-scfile_mNLUhm`,
+  `60fcd0ae-b5fd-5261-8a4b-39a17ce439e3-710148-scfile_NuLiaJ`,
+  `60fcd0ae-b5fd-5261-8a4b-39a17ce439e3-712797-scfile_YbCvtM` y
+  `60fcd0ae-b5fd-5261-8a4b-39a17ce439e3-712839-scfile_YbCvtM`.
 
-## H02 - Audit registrado frente a audit observado
+## H02 - Mismo asset y mismo audit con distinta policy
 
-- Estado: `En validacion`.
-- Alcance: Tenable.sc / `/analysis` / `.nessus`.
-- Hipotesis: el modelo final debe conservar por separado el audit registrado
-  (`auditFileID` y datos de `/auditFile`) y el audit observado en resultados
-  (`<cm:compliance-audit-file>` o valor del `.nessus`), porque no siempre
-  coinciden.
-- Validacion necesaria: revisar scanResults reales, resultados importados y
-  consultas `cumulative` e `individual` para confirmar que ambos campos dan
-  trazabilidad suficiente.
-- Evidencia actual: las evidencias de laboratorio sobre audit registrado frente
-  a audit observado viven en `laboratorio/README.md` y en salidas locales bajo
-  `outputs/`.
+- Estado: `Confirmada`.
+- Alcance: Tenable.sc / policy / `.audit` / `cumulative`.
+- Conclusion: al escanear el mismo Asset List con el mismo `auditFileID` desde
+  una policy distinta, Tenable.sc no crea una separacion visible por policy en
+  `sourceType=cumulative`; mantiene continuidad de los controles por
+  `pluginID`/`vulnUUID` y actualiza `lastSeen` con el scan mas reciente.
+- Evidencia: validacion del 2026-05-23 con Asset List `compliance_example`
+  (`assetID=118`). El scan `win_10_MODIFICADO` (`scan.id=10`) usa policy
+  `1000007` y el scan `SEGUNDA POLICY win_10_MODIFICADO` (`scan.id=11`) usa
+  policy `1000008`; ambas policies referencian el mismo `auditFileID=1000018`.
+  El scanResult nuevo `25106` termino `Completed`, `importStatus=Finished`,
+  `finishTime=1779572409` e `importFinish=1779572414`.
+- Resultado `cumulative`: con `assetID=118`, `pluginType=compliance` y
+  `auditFileID=1000018`, `/analysis` devolvio `totalRecords=2`, los mismos
+  `pluginID=1000200` y `pluginID=1003713`. Ambos conservaron `firstSeen`
+  `1779529623` y los mismos `vulnUUID`
+  (`8786418d-e666-40b6-988a-1cc385145696` y
+  `c5238ddc-5366-4f6d-9e9b-30cbfef26136`), mientras `lastSeen` avanzo a
+  `1779572412` y el audit observado cambio a
+  `60fcd0ae-b5fd-5261-8a4b-39a17ce439e3-712839-scfile_YbCvtM`.
+- Matiz: los registros devueltos por `/analysis` no exponen la policy como
+  dimension directa en esta prueba; la relacion con policy se confirmo mediante
+  `/scan` y `/policy`.
 
-## H03 - Asset Lists dinamicas o no preparadas
+## H03 - Control comentado/eliminado del audit
 
-- Estado: `Pendiente`.
-- Alcance: Tenable.sc / Asset Lists / `/analysis`.
-- Hipotesis: las Asset Lists dinamicas o no preparadas pueden necesitar una
-  estrategia distinta al fallback por IP usado para Asset Lists estaticas.
-- Validacion necesaria: probar Asset Lists dinamicas siguiendo
-  `laboratorio/README.md` o en produccion, documentar errores, comprobar si hay
-  fallback reproducible y definir cuando bloquear la extraccion.
-- Evidencia actual: las incidencias y repairs de Asset Lists del laboratorio
-  viven en `laboratorio/README.md`.
+- Estado: `Confirmada`.
+- Alcance: Tenable.sc / `.audit` / `cumulative`.
+- Conclusion: cuando un control se comenta en el `.audit` y se ejecuta un nuevo
+  scan, el control desaparece de la vista `cumulative` acotada por el
+  `auditFileID` actual. Sin acotar por `auditFileID`, el control puede seguir
+  visible en `cumulative` por Asset List como resultado anterior con `lastSeen`
+  antiguo. Si se usa un filtro temporal `lastSeen` posterior al ultimo scan en
+  que se observo el control, tambien desaparece de la vista amplia sin
+  `auditFileID`.
+- Caso de prueba activo: comentar el control
+  `1.1.1 [IG1](L1) Ensure 'Enforce password history' is set to '24 or more password(s)'`
+  (`pluginID=1003368`) del audit usado por `compliance_example [118]`.
+- Evidencia: validacion del 2026-05-23 contra `sourceType=cumulative`,
+  `assetID=118`, `pluginType=compliance` y `auditFileID=1000018`.
+  La consulta acotada al audit devolvio `totalRecords=2`
+  (`pluginID=1000200` y `pluginID=1003713`) y la consulta adicional con
+  `pluginID=1003368` devolvio `totalRecords=0`. La consulta amplia por
+  `assetID=118` y `pluginType=compliance` siguio devolviendo `pluginID=1003368`,
+  pero con `lastSeen=1779569492` y audit observado anterior
+  `60fcd0ae-b5fd-5261-8a4b-39a17ce439e3-712756-scfile_36ejBo`; los controles
+  del nuevo scan quedaron con `lastSeen=1779571204` y audit observado
+  `60fcd0ae-b5fd-5261-8a4b-39a17ce439e3-712797-scfile_YbCvtM`.
+- Evidencia adicional del 2026-05-24: tras comentar el control
+  `[1.1.2][MS][W10][N/A][v4.0.0][L1] Ensure 'Maximum password age' is set to '365 or fewer days, but not 0'`
+  y ejecutar `scan.id=10` (`scanResult=25125`), el filtro amplio
+  `assetID=118` + `pluginType=compliance` seguia mostrando el control antiguo
+  con `lastSeen=1779636188` y `1779635112`. Al anadir la ventana temporal
+  `lastSeen=1779641000-1779642000`, posterior al nuevo scan, el control
+  `pluginID=1005137` dejo de aparecer incluso sin `auditFileID`.
 
-## H04 - Fiabilidad de `auditFileID` como filtro
+## H06 - Policy con varios audits y OS no compatible
 
-- Estado: `En validacion`.
-- Alcance: Tenable.sc / `/analysis`.
-- Hipotesis: `auditFileID` permite filtrar o agrupar por audit registrado
-  cuando el audit es resoluble en Tenable.sc, pero no debe usarse como unica
-  prueba de audit ejecutado sin contrastar policy, `.nessus` o totales.
-- Validacion necesaria: probar todos los repositorios relevantes y registrar
-  audits listados por `/auditFile` que fallen o produzcan matches parciales.
-- Evidencia actual: los casos de laboratorio sobre `auditFileID`, errores y
-  matches parciales viven en `laboratorio/README.md` y en salidas locales bajo
-  `outputs/`.
+- Estado: `Confirmada`.
+- Alcance: Tenable.sc / policy / varios `.audit` / OS del host /
+  `cumulative`.
+- Conclusion: en la prueba con una policy multi-audit contra un host Windows 10,
+  Tenable.sc ejecuto/importo la policy correctamente y el audit de OS no
+  compatible no se ignoro silenciosamente: dejo un resultado de aplicabilidad
+  `WARNING` en `cumulative` bajo su propio `auditFileID`.
+- Evidencia: el 2026-05-24 el scan `win_10_MODIFICADO` (`scan.id=10`) uso la
+  policy `[COMPLIANCE] multiple_audits` con `auditFileID=1000018` Windows 10 y
+  `auditFileID=1000022` Windows 11 contra `assetID=118`
+  (`192.168.1.138`, Windows 10). El `scanResult=25109` termino `Completed` e
+  `importStatus=Finished`.
+- Resultado `cumulative`: con `assetID=118`, `pluginType=compliance` y
+  `auditFileID=1000018` se obtuvieron `3` registros del audit Windows 10. Con
+  `auditFileID=1000022` se obtuvo `1` registro `WARNING` (`pluginID=1003953`)
+  por fallo de aplicabilidad de Windows 11 sobre el host Windows 10.
+- Matiz: esta confirmacion aplica al caso probado Windows 10 + Windows 11. Para
+  otras familias de OS o audits sin checks de aplicabilidad equivalentes, repetir
+  la validacion antes de extrapolar.
 
-## H05 - Mapeo de severidad a PASSED/FAILED
+## H07 - Registros compliance sin `cm` por audit no resoluble
 
-- Estado: `Pendiente`.
-- Alcance: Fase 1B / KPIs.
-- Hipotesis: `severity.id=0` equivale a control superado y `severity.id>0`
-  equivale a control fallido.
-- Validacion necesaria: contrastar `severity`, `<cm:compliance-result>`,
-  GUI y casos con error, warning, unknown o estados no binarios.
-- Evidencia actual: el prototipo `sumseverity` usa este mapeo; los datos de
-  validacion de laboratorio viven en `laboratorio/README.md`.
+- Estado: `Rechazada`.
+- Alcance: Tenable.sc / `.audit` / `cumulative` / registros
+  `pluginType=compliance` sin tags `cm` parseables.
+- Hipotesis rechazada: algunos registros `pluginType=compliance` sin
+  `<cm:compliance-result>` ni `<cm:compliance-audit-file>` podrian proceder de
+  resultados huerfanos cuyo audit registrado ya no existe o ya no es resoluble
+  desde `/auditFile`.
+- Evidencia que la hace plausible: en
+  `outputs/compliance_hypotheses_validation_asset2_allaudits_20260523.json`,
+  generado el `2026-05-23T20:42:32Z`, la consulta amplia
+  `assetID=2`, `pluginType=compliance`, `sourceType=cumulative` y
+  `auditFileID=null` devolvio `3:<missing> = 2`. Ambos registros eran
+  `pluginID=33929` (`PCI DSS compliance`), `severity.id=3`, IP
+  `52.41.100.107`, repositorio `9`, `lastSeen=1762463548`
+  (`2025-11-06T21:12:28Z`), sin `compliance_results`, sin `audit_files` y sin
+  referencias parseadas.
+- Evidencia que la limita: los tests confirmados hasta ahora solo demuestran que
+  un control comentado/eliminado puede seguir apareciendo en `cumulative` amplio
+  si no se filtra por `auditFileID`; no demuestran que borrar o perder el audit
+  registrado elimine los tags `cm` del resultado. En la prueba H03, el resultado
+  antiguo seguia teniendo audit observado anterior. Ademas, `pluginID=33929`
+  aparece en artefactos de scan result revisados como plugin de familia
+  `Policy Compliance`, no necesariamente como control de un `.audit` custom.
+- Evidencia adicional del 2026-05-24: se comento el control
+  `[1.1.2][MS][W10][N/A][v4.0.0][L1] Ensure 'Maximum password age' is set to '365 or fewer days, but not 0'`
+  en `naming_convention_win10_fullaudit.audit`, se aplico sobre
+  `auditFileID=1000018` y se lanzo `scan.id=10`, generando
+  `scanResult=25125` con `status=Completed` e `importStatus=Finished`. Tras el
+  scan, `assetID=118` + `auditFileID=1000018` acotado al repositorio `Default`
+  (`9`) paso de `332` a `331` registros y el control `pluginID=1005137` dejo
+  de aparecer con ese filtro. Sin `auditFileID`, el mismo control siguio
+  visible como resultado antiguo en el repositorio `Default` (`9`), conservando
+  `<cm:compliance-result>` y
+  `<cm:compliance-audit-file>`. En las consultas revisadas de `assetID=118` no
+  aparecieron registros sin ambos tags `cm`.
+- Evidencia final del 2026-05-24: se desregistro el audit temporal
+  `auditFileID=1000023` (`win_10_MODIFICADO_v2_segundo_compliance`,
+  `filename=scfile_UZrH6U`), que tenia resultados historicos para
+  `assetID=118`. Antes del borrado, `assetID=118` +
+  `auditFileID=1000023` devolvia `5` registros (`pluginID=1003714`,
+  `1004311` y `1004312`), todos con `<cm:compliance-result>` y
+  `<cm:compliance-audit-file>`. Tras `DELETE /auditFile/1000023`,
+  `GET /auditFile/1000023` fallo con `error_code=145`, `/analysis` filtrando
+  por `auditFileID=1000023` fallo con `error_code=143`, y la policy
+  `1000009` dejo de listar ese audit. Sin embargo, la consulta amplia
+  `assetID=118` + `pluginType=compliance` siguio devolviendo esos `5`
+  resultados historicos, conservando sus tags `cm` parseables.
+- Conclusion: ni comentar controles ni desregistrar un audit file registrado
+  convierte los resultados historicos en registros sin tags `cm`. Los registros
+  `pluginType=compliance` sin tags `cm` observados en otros datos, por ejemplo
+  `pluginID=33929` (`PCI DSS compliance`), deben tratarse como registros
+  especiales/no parseables de familia compliance, no como evidencia de que un
+  audit custom borrado pierda los tags `cm`.
 
-## H06 - Estados no binarios en compliance
+## H08 - Cambio de tipo tecnico manteniendo `description`
 
-- Estado: `Pendiente`.
-- Alcance: Fase 1B / calculo de porcentaje.
-- Hipotesis: pueden existir estados no binarios que deban quedar fuera del
-  porcentaje `passed / total` o formar buckets propios.
-- Validacion necesaria: recolectar resultados con Error, Warning, Unknown u
-  otros estados y definir formula final.
-- Evidencia actual: Tenable IO observo contadores `Passed`, `Error` y
-  `Failed`; la evidencia del laboratorio secundario vive en
-  `laboratorio/README.md`. No extrapolar automaticamente a Tenable.sc.
+- Estado: `Confirmada`.
+- Alcance: Tenable.sc / `.audit` / identidad de control / `cumulative`.
+- Hipotesis confirmada: cambiar el `type` tecnico de un control sin cambiar su
+  `description` no crea un control nuevo visible en `cumulative`; la identidad
+  del control queda asociada al mismo `pluginID`/`vulnUUID`.
+- Evidencia: el 2026-05-24 se modifico el control
+  `[1.1.1][MS][W10][N/A][v4.0.0][L1][CV1] Ensure 'Enforce password history' is set to '24 or more password(s)'`
+  en `naming_convention_win10_fullaudit.audit`. El bloque paso de
+  `type: PASSWORD_POLICY` con `password_policy: ENFORCE_PASSWORD_HISTORY` a
+  `type: AUDIT_POWERSHELL`, usando `powershell_args:
+  "get-wmiobject win32_operatingsystem"` y `check_type: CHECK_REGEX`. La
+  sintaxis se contrasto con `NessusComplianceChecksReference.pdf`, seccion
+  Windows `AUDIT_POWERSHELL`, usando un cmdlet `get-` y evitando aliases.
+- Resultado: tras aplicar el fichero sobre `auditFileID=1000018` y lanzar
+  `scan.id=17`, `scanResult=25127` termino `Completed` e
+  `importStatus=Finished`. En `/analysis` con `assetID=118`,
+  `repositoryIDs=9`, `pluginType=compliance` y `auditFileID=1000018`, el
+  control mantuvo `pluginID=1005136`, `vulnUUID=d05adfed-812a-4618-9284-0a679183dd10`
+  y `firstSeen=1779635112`; solo avanzo `lastSeen=1779647247`. El resultado
+  cambio a `ERROR` y el `policy_value` observado paso a
+  `AUDIT_POWERSHELL value_data: '.*Windows.*'`.
+- Conclusion: para el modelo funcional del extractor, el `type` tecnico del
+  check no debe usarse como separador de identidad historica cuando el
+  `description` se mantiene exactamente igual. La identidad visible del control
+  depende del `description` en este caso probado.
 
-## H07 - Asset Lists tecnicas o default
+## H09 - Duplicado vivo con mismo `description` en el mismo `.audit`
 
-- Estado: `Pendiente`.
-- Alcance: Fase 1B / seleccion de alcance.
-- Hipotesis: algunas Asset Lists de produccion seran tecnicas/default y deben
-  excluirse de KPIs y detalle.
-- Validacion necesaria: inventariar Asset Lists de produccion y clasificarlas
-  como negocio o tecnicas.
-- Evidencia actual: pendiente de inventario real.
+- Estado: `Confirmada`.
+- Alcance: Tenable.sc / `.audit` / duplicados / `cumulative`.
+- Hipotesis confirmada: si el mismo `.audit` contiene dos bloques vivos con
+  exactamente el mismo `description`, Tenable.sc no crea dos controles visibles
+  separados en `cumulative`; agrupa ambos bajo el mismo control.
+- Evidencia: despues de H08 se copio de nuevo el bloque original
+  `PASSWORD_POLICY` del control `[1.1.1]` sin cambiar su `description`, dejando
+  en `naming_convention_win10_fullaudit.audit` dos bloques vivos con la misma
+  identidad visible: uno `AUDIT_POWERSHELL` y otro `PASSWORD_POLICY`. El fichero
+  se aplico sobre `auditFileID=1000018` y se lanzo `scan.id=17`, generando
+  `scanResult=25128` con `status=Completed`, `importStatus=Finished`,
+  `completedChecks=27822`, `finishTime=1779647815` e
+  `importFinish=1779647822`.
+- Resultado: `/analysis` con `assetID=118`, `repositoryIDs=9`,
+  `pluginType=compliance` y `auditFileID=1000018` mantuvo
+  `totalRecords=331` y devolvio un unico registro para esa `description`, no
+  dos. El registro mantuvo `pluginID=1005136`,
+  `vulnUUID=d05adfed-812a-4618-9284-0a679183dd10` y
+  `firstSeen=1779635112`, con `lastSeen=1779647819`. Dentro del mismo
+  `pluginText` aparecieron dos resultados: `ERROR` para el bloque
+  `AUDIT_POWERSHELL` y `FAILED` para el bloque `PASSWORD_POLICY`; tambien se
+  observaron dos `actual_value`, vacio y `0`.
+- Conclusion: dos controles con la misma `description` dentro del mismo `.audit`
+  comparten un unico ID logico visible en Tenable.sc. El extractor debe tratar
+  ese caso como un unico registro de control con posible output compuesto, no
+  como dos controles independientes. Para coexistencia real de dos versiones,
+  hay que diferenciar la `description`, por ejemplo con `[CV1]` y `[CV2]`.
 
-## H08 - Identidad de host
+## Hipotesis valorativas no funcionales
 
-- Estado: `Pendiente`.
-- Alcance: modelo de datos.
-- Hipotesis: la identidad de host final debe priorizar o combinar `hostUUID`,
-  `uuid`, `ip`, `dnsName`, `netbiosName` y repositorio.
-- Validacion necesaria: comparar estabilidad de esos campos entre scans,
-  repositorios, imports y cambios de IP/nombre.
-- Evidencia actual: Fase 1A conserva IP y datos visibles; falta definir clave
-  historica.
+Estas hipotesis no forman parte del contrato funcional actual del extractor y
+no deben implementarse como comportamiento final salvo decision explicita
+posterior. Sirven para razonar sobre trazabilidad fina y posibles diagnosticos.
 
-## H09 - Identidad de controles al cambiar el `.audit`
+### HV01 - Segunda parte del audit observado desde cumulative
 
-- Estado: `En validacion`.
-- Alcance: Tenable.sc / identidad historica de controles.
-- Hipotesis: cambios funcionales del `.audit` afectan a distintos
-  identificadores de control segun el campo modificado.
-- Validacion necesaria: consolidar la matriz de cambios:
-  `reference`, `value_data`, `description`, ejecucion de dos audits y
-  duplicados con mismo titulo/alcance.
-- Evidencia actual:
-  - Conversacion externa con Exa de Tenable VM 2026-05-22, no confirmada para
-    Tenable.sc: cambiar solo valor esperado mantendria el control; cambiar
-    nombre/descripcion lo trataria como control nuevo; sin filtro de audit
-    podrian verse controles logicamente equivalentes.
-  - La referencia de compliance checks de Nessus indica en varios tipos de
-    checks que `description` debe ser unico y que Tenable puede usarlo para
-    generar un plugin ID unico. Es evidencia relacionada, pero no cierra por si
-    sola el comportamiento en Tenable.sc `sourceType=cumulative`.
-  - Cambiar solo `reference` no creo controles nuevos ni aumento totales en
-    Tenable.sc; mantuvo `pluginID`, `pluginName`, `vulnUUID`, severidad y
-    resultado.
-  - Cambiar `value_data` manteniendo nombre no creo control visible nuevo, pero
-    cambio `policy_value`, `actual_value`, `check_id`, `full_id` y
-    `functional_id`.
-  - Cambiar `description`/nombre si creo un control nuevo visible.
-
-## H10 - Duplicados o colapso de controles equivalentes
-
-- Estado: `Pendiente`.
-- Alcance: Tenable.sc / cumulative.
-- Hipotesis: dos checks con mismo titulo o alcance funcional pueden colapsar en
-  un unico resultado visible en lugar de generar dos registros separados.
-- Validacion necesaria: aislar una prueba de duplicados y comparar
-  `pluginID`, `vulnUUID`, `actual_value`, `firstSeen`, `lastSeen` y
-  `totalRecords`.
-- Evidencia actual: se observo un `actual_value` doble (`0\n\n0`) en lugar de
-  otro registro separado, pero aun no se considera contrato.
-
-## H11 - `reference` como metadato de negocio
-
-- Estado: `En validacion`.
-- Alcance: Tenable.sc y Tenable IO.
-- Hipotesis: `reference` puede usarse para anadir etiquetas de negocio
-  (`CLIENT_IG`, `CLIENT_TAG`, criticidad, owner u otros metadatos) sin cambiar
-  la identidad del control ni generar duplicados.
-- Validacion necesaria: revalidar matriz completa en Tenable.sc y mantener la
-  evidencia de Tenable IO separada hasta confirmar equivalencia.
-- Evidencia actual:
-  - En Tenable.sc, una sola linea `reference` con referencias originales y
-    custom al final promociono metadatos a `xref` en controles aplicables.
-  - Una segunda linea `reference` separada llego a `<cm:compliance-reference>`,
-    pero no siempre a GUI/Cross References.
-  - En Tenable IO, un mismo check observado en dos audits mantuvo
-    `compliance_full_id`, `compliance_functional_id` y
-    `compliance_informational_id`, con y sin referencias custom.
-
-## H12 - Ubicacion final del extractor
-
-- Estado: `Pendiente`.
-- Alcance: despliegue / Fase 2.
-- Hipotesis: ejecutar el extractor en host, contenedor dedicado, Splunk modular
-  input o tarea programada cambia credenciales, rutas, logs, dependencias y
-  operativa.
-- Validacion necesaria: decidir topologia antes de Fase 2 y parametrizar el
-  despliegue.
-- Evidencia actual: la configuracion operativa actual vive en
-  `laboratorio/README.md`; Splunk no esta activo como fase.
+- Tipo: valorativa / no implementar en funcionamiento final.
+- Idea: desde `sourceType=cumulative` con `tool=vulndetails`, el campo
+  `<cm:compliance-audit-file>` permite parsear el audit observado completo, por
+  ejemplo `60fcd0ae-b5fd-5261-8a4b-39a17ce439e3-712839-scfile_YbCvtM`. De ese
+  valor se podria separar el prefijo estable, la segunda parte numerica
+  (`712839`) y el sufijo interno `scfile_*`.
+- Valor potencial: podria servir como trazabilidad diagnostica mas fina de la
+  copia observada del audit en el estado latest que devuelve `cumulative`.
+- Cuestionamiento: `cumulative` no es historico de ejecuciones. Solo permite
+  ver la copia observada asociada a los controles vivos en esa vista; no permite
+  reconstruir todas las versiones/copias anteriores si no se guardan snapshots o
+  se consultan scanResults historicos.
+- Riesgo de interpretacion: la segunda parte numerica puede ser un identificador
+  interno de copia/ejecucion y no una version funcional del `.audit`. No debe
+  usarse como clave de negocio ni como prueba unica de modificacion del fichero.
+- Regla actual: conservar el audit observado completo como trazabilidad cuando
+  se extraiga de `cumulative`, pero no anadir la segunda parte como campo
+  funcional ni usarla para filtrar, agrupar o decidir continuidad del control.

@@ -6,23 +6,29 @@ services:
     container_name: tenablesc-labbox-ol8
     hostname: labbox.locallab
     platform: linux/amd64
+    restart: unless-stopped
     shm_size: "1gb"
+    command: ["/usr/bin/bash", "/opt/holcim/tenablesc-entrypoint.sh"]
     ports:
       - "8443:443"
     volumes:
       - ${LABBOX_UTILS_PATH:-./labbox-utils}:/labbox
+      - ./tenablesc-entrypoint.sh:/opt/holcim/tenablesc-entrypoint.sh:ro
+      - ./tenablesc-supervisord.conf:/opt/holcim/tenablesc-supervisord.conf:ro
+      - tenablescdata-ol8:/opt/sc
+      - tenablednfcache-ol8:/var/cache/dnf
     tmpfs:
       - /tmp:mode=1770,size=21474836480
       - /run
-
-  nessus:
-    image: tenable/nessus:latest-ubuntu
-    container_name: nessus_8835
-    restart: unless-stopped
-    ports:
-      - "8835:8834"
-
 networks:
   default:
     external: true
     name: docker_labbox_default-ol8
+
+volumes:
+  tenablescdata-ol8:
+    external: true
+    name: tenablescdata-ol8
+  tenablednfcache-ol8:
+    external: true
+    name: tenablednfcache-ol8
