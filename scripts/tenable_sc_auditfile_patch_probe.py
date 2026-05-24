@@ -320,8 +320,10 @@ def run_probe(args: argparse.Namespace) -> dict[str, Any]:
     load_env_file(Path(args.env))
     client_kwargs = {
         "base_url": os.environ.get("TENABLE_SC_URL", "https://localhost:8443"),
-        "username": os.environ.get("TENABLE_SC_USERNAME", ""),
-        "password": os.environ.get("TENABLE_SC_PASSWORD", ""),
+        "username": os.environ.get("TENABLE_SC_SECURITY_MANAGER_USERNAME")
+        or os.environ.get("TENABLE_SC_USERNAME", ""),
+        "password": os.environ.get("TENABLE_SC_SECURITY_MANAGER_PASSWORD")
+        or os.environ.get("TENABLE_SC_PASSWORD", ""),
         "access_key": os.environ.get("TENABLE_SC_ACCESS_KEY", ""),
         "secret_key": os.environ.get("TENABLE_SC_SECRET_KEY", ""),
         "auth_mode": os.environ.get("TENABLE_SC_AUTH_MODE", "session").strip().lower(),

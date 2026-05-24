@@ -42,12 +42,13 @@ class TenableConfig:
     def from_env(cls, timeout: int | None = None) -> "TenableConfig":
         return cls(
             url=os.environ.get("TENABLE_SC_URL", "https://localhost:8443"),
-            username=os.environ.get("TENABLE_SC_USERNAME", ""),
-            password=os.environ.get("TENABLE_SC_PASSWORD", ""),
+            username=os.environ.get("TENABLE_SC_SECURITY_MANAGER_USERNAME")
+            or os.environ.get("TENABLE_SC_USERNAME", ""),
+            password=os.environ.get("TENABLE_SC_SECURITY_MANAGER_PASSWORD")
+            or os.environ.get("TENABLE_SC_PASSWORD", ""),
             verify_ssl=parse_bool(os.environ.get("TENABLE_SC_VERIFY_SSL"), True),
             auth_mode=os.environ.get("TENABLE_SC_AUTH_MODE", "session").strip().lower(),
             access_key=os.environ.get("TENABLE_SC_ACCESS_KEY", ""),
             secret_key=os.environ.get("TENABLE_SC_SECRET_KEY", ""),
             timeout=timeout or int(os.environ.get("TENABLE_SC_TIMEOUT", "300")),
         )
-

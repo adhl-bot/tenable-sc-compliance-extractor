@@ -185,12 +185,24 @@ def normalize_detail_record(
 ) -> dict[str, Any]:
     plugin_text = str(record.get("pluginText") or "")
     last_seen_epoch = str(record.get("lastSeen") or "")
+    actual_values = compliance_tag_values(plugin_text, "compliance-actual-value")
+    compliance_results = compliance_tag_values(plugin_text, "compliance-result")
+    observed_audit_files = compliance_tag_values(plugin_text, "compliance-audit-file")
+    policy_values = compliance_tag_values(plugin_text, "compliance-policy-value")
+    references = compliance_tag_values(plugin_text, "compliance-reference")
     return {
         "asset": str(asset.get("name", "")),
         "ip": str(record.get("ip") or ""),
+        "plugin_id": str(record.get("pluginID") or ""),
+        "vuln_uuid": str(record.get("vulnUUID") or ""),
         "control_name": compliance_tag(plugin_text, "compliance-check-name")
         or str(record.get("pluginName") or record.get("name") or ""),
-        "actual_value": compliance_tag(plugin_text, "compliance-actual-value") or "",
+        "compliance_results": compliance_results,
+        "actual_values": actual_values,
+        "actual_value": first_non_empty(actual_values) or "",
+        "observed_audit_files": observed_audit_files,
+        "policy_values": policy_values,
+        "references": references,
         "last_observed": epoch_to_iso(last_seen_epoch),
         "last_observed_epoch": int(last_seen_epoch) if last_seen_epoch.isdigit() else None,
     }
@@ -208,6 +220,10 @@ def normalize_asset(asset: dict[str, Any]) -> dict[str, Any]:
 
 def compliance_tag(plugin_text: str, tag: str) -> str | None:
     values = compliance_tag_values(plugin_text, tag)
+    return first_non_empty(values)
+
+
+def first_non_empty(values: list[str]) -> str | None:
     if not values:
         return None
     for value in values:
@@ -267,4 +283,3 @@ def write_details_output(
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(rendered, encoding="utf-8")
     return rendered
-

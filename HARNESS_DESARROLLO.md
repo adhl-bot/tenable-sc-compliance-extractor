@@ -42,10 +42,17 @@ Regla:
 
 - Antes de tocar codigo, leer `agents.md` y el estandar tecnico que aplique en
   `ESTANDARES_ADOPTADOS.md`.
+- El estandar local es trabajar con el entorno virtual del proyecto en `.venv`.
+  Usar `.\.venv\Scripts\python.exe` para comandos reproducibles desde Codex o
+  activar `.\.venv\Scripts\Activate.ps1` en una terminal interactiva.
+- Las dependencias Python nuevas deben instalarse dentro de `.venv` y quedar
+  declaradas en el mecanismo de dependencias que adopte el proyecto; no instalar
+  librerias en el Python global como parte del flujo normal.
 - Si la tarea implica levantar, diagnosticar, reparar, validar, consultar,
   migrar o modificar el laboratorio, leer primero `laboratorio/README.md`; las
   configuraciones del laboratorio viven alli y no deben duplicarse aqui.
-- Para comprobar portabilidad del laboratorio, usar `python laboratorio\build_lab.py package-status`.
+- Para comprobar portabilidad del laboratorio, usar
+  `.\.venv\Scripts\python.exe laboratorio\build_lab.py package-status`.
 - Todo desarrollo nuevo de utilidades, probes, llamadas API, scraping de apoyo,
   parsers y validaciones debe hacerse en Python usando librerias de Python
   estandar o dependencias declaradas del proyecto. PowerShell, `curl` u otros
@@ -91,7 +98,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\harness_check.ps1
 Debe comprobar como minimo:
 
 - estructura basica del proyecto;
-- disponibilidad de Python;
+- disponibilidad de `.venv` y de `.\.venv\Scripts\python.exe`;
 - ejecucion de tests unitarios;
 - ayuda del CLI principal.
 
@@ -174,6 +181,10 @@ Para llamadas de Asset Lists:
 
 - Expresar origen con `'Nombre [ID]'`.
 - Expresar destino con un campo explicito como `asset_id_to_change`.
+- Usar Asset List como unidad minima de alcance; no sustituirlo por IP como
+  agrupacion funcional.
+- Filtrar por `assetID` o asset math. El filtro `ip` queda reservado a fallback
+  tecnico documentado cuando un Asset List estatico falle por artefactos internos.
 - Usar `sumip` cuando el objetivo sea obtener IPs.
 - Usar siempre `sourceType=cumulative`.
 
