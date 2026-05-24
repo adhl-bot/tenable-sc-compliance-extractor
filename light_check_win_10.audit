@@ -1,0 +1,35 @@
+# description : Light Windows 10 compliance check for fast hypothesis retests.
+
+<check_type:"Windows" version:"2">
+<group_policy:"light_check_win_10">
+
+  <custom_item>
+    type        : REGISTRY_SETTING
+    description : "[18.10.15.1][MS][W10][N/A][v4.0.0][L1] Ensure 'Do not display the password reveal button' is set to 'Enabled'"
+    info        : "Light Windows 10 test control selected from REAL_win10 because it performs a single registry read."
+    solution    : "Set Computer Configuration\Policies\Administrative Templates\Windows Components\Credential User Interface\Do not display the password reveal button to Enabled."
+    reference   : "CONTROL_IG|IG3,CONTROL_INTERNAL_VERSION|0"
+    see_also    : "https://workbench.cisecurity.org/benchmarks/22607"
+    value_type  : POLICY_DWORD
+    value_data  : "1"
+    reg_key     : "HKLM\Software\Policies\Microsoft\Windows\CredUI"
+    reg_item    : "DisablePasswordReveal"
+    reg_option  : CAN_NOT_BE_NULL
+  </custom_item>
+
+  <custom_item>
+    type        : REGISTRY_SETTING
+    description : "[18.10.15.2][MS][W10][N/A][v4.0.0][L1] Ensure 'Enumerate administrator accounts on elevation' is set to 'Disabled'"
+    info        : "Light Windows 10 test control selected from REAL_win10 because it performs a single registry read."
+    solution    : "Set Computer Configuration\Policies\Administrative Templates\Windows Components\Credential User Interface\Enumerate administrator accounts on elevation to Disabled."
+    reference   : "CONTROL_IG|IG2,CONTROL_INTERNAL_VERSION|0"
+    see_also    : "https://workbench.cisecurity.org/benchmarks/22607"
+    value_type  : POLICY_DWORD
+    value_data  : "0"
+    reg_key     : "HKLM\Software\Microsoft\Windows\CurrentVersion\Policies\CredUI"
+    reg_item    : "EnumerateAdministrators"
+    reg_option  : CAN_NOT_BE_NULL
+  </custom_item>
+
+</group_policy>
+</check_type>

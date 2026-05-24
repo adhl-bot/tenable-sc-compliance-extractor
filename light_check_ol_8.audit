@@ -1,0 +1,33 @@
+# description : Light Oracle Linux 8 compliance check for fast hypothesis retests.
+
+<check_type:"Unix">
+<group_policy:"light_check_ol_8">
+
+  <custom_item>
+    type        : FILE_CHECK
+    description : "[7.1.1][OL][8][N/A][v4.0.0][L1] Ensure access to /etc/passwd is configured"
+    info        : "Light Oracle Linux 8 test control selected from OL_8 because it checks metadata for one small file."
+    solution    : "Run chmod u-x,go-wx /etc/passwd and chown root:root /etc/passwd."
+    reference   : "CONTROL_IG|IG1,CONTROL_INTERNAL_VERSION|0"
+    see_also    : "https://workbench.cisecurity.org/benchmarks/23600"
+    file        : "/etc/passwd"
+    owner       : "root"
+    mask        : "133"
+    group       : "root"
+  </custom_item>
+
+  <custom_item>
+    type        : FILE_CHECK
+    description : "[7.1.3][OL][8][N/A][v4.0.0][L1] Ensure access to /etc/group is configured"
+    info        : "Light Oracle Linux 8 test control selected from OL_8 because it checks metadata for one small file."
+    solution    : "Run chmod u-x,go-wx /etc/group and chown root:root /etc/group."
+    reference   : "CONTROL_IG|IG3,CONTROL_INTERNAL_VERSION|0"
+    see_also    : "https://workbench.cisecurity.org/benchmarks/23600"
+    file        : "/etc/group"
+    owner       : "root"
+    mask        : "133"
+    group       : "root"
+  </custom_item>
+
+</group_policy>
+</check_type>

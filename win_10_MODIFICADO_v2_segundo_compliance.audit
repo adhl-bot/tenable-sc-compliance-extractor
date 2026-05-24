@@ -130,31 +130,33 @@
   <condition type:"AND">
     <custom_item>
       type        : REGISTRY_SETTING
-      description : "Windows 10 build installed"
+      description : "[0.0.0][MS][W10][N/A][v4.0.0][L1] Windows 10 build installed"
       value_type  : POLICY_TEXT
       value_data  : "@BUILD_VERSION@"
       reg_key     : "HKLM\Software\Microsoft\Windows Nt\Currentversion"
       reg_item    : "CurrentBuild"
       check_type  : CHECK_REGEX
+      reference   : "CONTROL_IG|IG1,CONTROL_INTERNAL_VERSION|0"
     </custom_item>
 
     <custom_item>
       type        : REGISTRY_SETTING
-      description : "Windows 10 is installed"
+      description : "[0.0.0][MS][W10][N/A][v4.0.0][L1] Windows 10 is installed"
       value_type  : POLICY_TEXT
       value_data  : "^[Ww][Ii][Nn][Dd][Oo][Ww][Ss] @PLATFORM_VERSION@.+$"
       reg_key     : "HKLM\Software\Microsoft\Windows Nt\Currentversion"
       reg_item    : "ProductName"
       check_type  : CHECK_REGEX
+      reference   : "CONTROL_IG|IG1,CONTROL_INTERNAL_VERSION|0"
     </custom_item>
   </condition>
 
   <then>
     <report type:"PASSED">
-      description : "[0.0.0] [MS_WIN10][N/A][v4.0.0][L1] CIS_Microsoft_Windows_10_Stand-alone_v4.0.0_L1_XXXXXXX FICHERO MODIFICAD___V4__.audit from CIS Microsoft Windows 10 Stand-alone Benchmark v4.0.0"
+      description : "[0.0.0][MS][W10][N/A][v4.0.0][L1] CIS_Microsoft_Windows_10_Stand-alone_v4.0.0_L1_XXXXXXX FICHERO MODIFICAD___V4__.audit from CIS Microsoft Windows 10 Stand-alone Benchmark v4.0.0"
       see_also    : "https://workbench.cisecurity.org/benchmarks/22607"
       show_output : YES
-      reference: "CONTROL_IG|IG1,CONTROL_INTERNAL_VERSION|0,CLIENT_TAG|HOLCIM,CLIENT_OTHER|otro valor random"
+      reference: "CONTROL_IG|IG1,CONTROL_INTERNAL_VERSION|0,CONTROL_CLIENT_TAG|HOLCIM,CONTROL_CLIENT_OTHER|otro valor random"
     </report>
 
 
@@ -162,7 +164,7 @@
   # DESDE CUMULATIVE SE COMPARA EL FILTRO POR AUDIT FILE CON EL CAMBIO DE DESCRIPTION.
     <custom_item>
       type            : PASSWORD_POLICY
-      description     : "[1.1.1] [MS_WIN10][N/A][v4.0.0][L1][CV2] Ensure 'Enforce password history' is set to '24 or more password(s)'"
+      description     : "[1.1.1][MS][W10][N/A][v4.0.0][L1][CV2] Ensure 'Enforce password history' is set to '24 or more password(s)'"
       info            : " SIMULANDO UNA SUBIDA DE VERSION - EL FICHERO ES DIFERENTE PERO SE GUARDA EN EL MISMO CONTENEDRO QUE EL ANTERIOR PARA SIMULAR LA SUBIDA DE VERSION.
       This policy setting determines the number of renewed, unique passwords that have to be associated with a user account before you can reuse an old password. The value for this policy setting must be between 0 and 24 passwords. The default value for stand-alone systems is 0 passwords, but the default setting when joined to a domain is 24 passwords. To maintain the effectiveness of this policy setting, use the Minimum password age setting to prevent users from repeatedly changing their password.
 
@@ -182,7 +184,7 @@ Computer Configuration\Policies\Windows Settings\Security Settings\Account Polic
 Impact:
 
 The major impact of this configuration is that users must create a new password every time they are required to change their old one. If users are required to change their passwords to new unique values, there is an increased risk of users who write their passwords somewhere so that they do not forget them. Another risk is that users may create passwords that change incrementally (for example, password01, password02, and so on) to facilitate memorization but make them easier to guess. Also, an excessively low value for the Minimum password age setting will likely increase administrative overhead, because users who forget their passwords might ask the help desk to reset them frequently."
-      reference       : "800-171|3.5.2,800-171r3|03.05.07,800-53|IA-5(1),800-53r5|IA-5(1),CSCv7|16.2,CSCv8|5.2,CSF|PR.AC-1,CSF2.0|PR.AA-01,CSF2.0|PR.AA-03,GDPR|32.1.b,HIPAA|164.306(a)(1),HIPAA|164.312(a)(2)(i),HIPAA|164.312(d),ISO-27001-2022|A.5.16,ISO-27001-2022|A.5.17,ITSG-33|IA-5(1),LEVEL|1A,NESA|T5.2.3,QCSC-v1|5.2.2,QCSC-v1|13.2,SWIFT-CSCv1|4.1,CONTROL_IG|IG1,CONTROL_INTERNAL_VERSION|0,CLIENT_TAG|HOLCIM,SE_ROMPE_CON ESPACIOS|otro_valor_random,VALOR_RARO|[AS!@3C%#&**&$67^&%()!DS],OTRAS_HISTORIAS|ASDFSAFAECZ32 453W"
+      reference       : "800-171|3.5.2,800-171r3|03.05.07,800-53|IA-5(1),800-53r5|IA-5(1),CSCv7|16.2,CSCv8|5.2,CSF|PR.AC-1,CSF2.0|PR.AA-01,CSF2.0|PR.AA-03,GDPR|32.1.b,HIPAA|164.306(a)(1),HIPAA|164.312(a)(2)(i),HIPAA|164.312(d),ISO-27001-2022|A.5.16,ISO-27001-2022|A.5.17,ITSG-33|IA-5(1),LEVEL|1A,NESA|T5.2.3,QCSC-v1|5.2.2,QCSC-v1|13.2,SWIFT-CSCv1|4.1,CONTROL_IG|IG1,CONTROL_INTERNAL_VERSION|0,CONTROL_CLIENT_TAG|HOLCIM,CONTROL_SE_ROMPE_CON_ESPACIOS|otro_valor_random,CONTROL_VALOR_RARO|[AS!@3C%#&**&$67^&%()!DS],CONTROL_OTRAS_HISTORIAS|ASDFSAFAECZ32 453W"
       see_also        : "https://workbench.cisecurity.org/benchmarks/22607"
       value_type      : POLICY_DWORD
       value_data      : @MAXIMUM_PASSWORD_AGE_2@
@@ -194,11 +196,11 @@ The major impact of this configuration is that users must create a new password 
 
   <else>
     <report type:"WARNING">
-      description : "CIS_Microsoft_Windows_10_Stand-alone_v4.0.0_L1.audit from CIS Microsoft Windows 10 Stand-alone Benchmark v4.0.0"
+      description : "[0.0.0][MS][W10][N/A][v4.0.0][L1] CIS_Microsoft_Windows_10_Stand-alone_v4.0.0_L1.audit from CIS Microsoft Windows 10 Stand-alone Benchmark v4.0.0"
       info        : "NOTE: Nessus has not identified that the chosen audit applies to the target device."
       see_also    : "https://workbench.cisecurity.org/benchmarks/22607"
       show_output : YES
-      reference: "CLIENT_IG|IG1,CLIENT_TAG|HOLCIM,CLIENT_OTHER|otro valor random"
+      reference: "CONTROL_IG|IG1,CONTROL_CLIENT_TAG|HOLCIM,CONTROL_CLIENT_OTHER|otro valor random"
       
     </report>
   </else>
